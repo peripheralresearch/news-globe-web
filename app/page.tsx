@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import type { FeatureCollection, Feature, Point } from 'geojson'
+import type { FeatureCollection, Feature, Point, LineString } from 'geojson'
 
 interface NewsItem {
     id: string
@@ -12,13 +12,26 @@ interface NewsItem {
   created: string
   location: string
   coordinates: [number, number]
+  storyCount?: number
+}
+
+interface Relationship {
+  actor: string
+  actorCoordinates: [number, number]
+  target: string
+  targetCoordinates: [number, number]
+  type: string
+  sentiment: string
+  title: string | null
 }
 
 interface GlobeData {
   newsItems: NewsItem[]
+  relationships: Relationship[]
   stats: {
     total_news_items: number
     total_locations: number
+    total_relationships: number
   }
 }
 
@@ -48,27 +61,27 @@ export default function Home() {
     try {
       setIsLoading(true)
       console.log('Fetching globe data from /api/sentinel/globe...')
-      const response = await fetch('/api/sentinel/globe?limit=20')
-      
+      const response = await fetch('/api/sentinel/globe?limit=50')
+
       if (!response.ok) {
         console.error('API response not OK:', response.status, response.statusText)
         return null
       }
-      
+
       const result = await response.json()
       console.log('API response received:', result)
 
       if (result.status === 'success' && result.data) {
-        // Transform locations into individual news item points
+        // Transform locations into news items with story counts
         const newsItems: NewsItem[] = []
 
         if (result.data.locations && Array.isArray(result.data.locations)) {
-          // Limit to first 30 locations to avoid too many points
           const limitedLocations = result.data.locations.slice(0, 30)
-          
+
           limitedLocations.forEach((loc: {
             entity_name: string
             coordinates: [number, number]
+            story_count: number
             stories: Array<{
               id: string
               title: string | null
@@ -77,7 +90,6 @@ export default function Home() {
             }>
           }) => {
             if (loc.stories && Array.isArray(loc.stories)) {
-              // Only take the first news item per location to reduce points
               const firstItem = loc.stories[0]
               if (firstItem) {
                 newsItems.push({
@@ -87,24 +99,54 @@ export default function Home() {
                   created: firstItem.created,
                   location: loc.entity_name,
                   coordinates: loc.coordinates,
+                  storyCount: loc.story_count,
                 })
               }
             }
           })
         }
 
+        // Parse relationships for arc visualization
+        const relationships: Relationship[] = []
+        if (result.data.relationships && Array.isArray(result.data.relationships)) {
+          result.data.relationships.forEach((rel: {
+            actor: string
+            actor_coordinates: [number, number]
+            targets: string[]
+            target_coordinates: Array<{ name: string; coordinates: [number, number] }>
+            type: string
+            sentiment: string
+            story_title: string | null
+          }) => {
+            // Create a relationship for each target
+            rel.target_coordinates.forEach((target) => {
+              relationships.push({
+                actor: rel.actor,
+                actorCoordinates: rel.actor_coordinates,
+                target: target.name,
+                targetCoordinates: target.coordinates,
+                type: rel.type,
+                sentiment: rel.sentiment,
+                title: rel.story_title,
+              })
+            })
+          })
+        }
+
         const data: GlobeData = {
           newsItems,
+          relationships,
           stats: {
             total_news_items: newsItems.length,
             total_locations: result.data.locations?.length || 0,
+            total_relationships: relationships.length,
           }
         }
 
-        console.log('Processed globe data:', { 
-          newsItems: data.newsItems.length, 
+        console.log('Processed globe data:', {
+          newsItems: data.newsItems.length,
           locations: data.stats.total_locations,
-          limited: true 
+          relationships: data.stats.total_relationships,
         })
         setGlobeData(data)
         globeDataRef.current = data
@@ -124,31 +166,43 @@ export default function Home() {
     }
   }, [])
 
-  // Update map with news item points
+  // Generate arc coordinates between two points (great circle approximation)
+  const generateArc = (start: [number, number], end: [number, number], numPoints = 50): [number, number][] => {
+    const coords: [number, number][] = []
+    for (let i = 0; i <= numPoints; i++) {
+      const t = i / numPoints
+      // Simple linear interpolation (works well for short arcs)
+      const lng = start[0] + t * (end[0] - start[0])
+      const lat = start[1] + t * (end[1] - start[1])
+      coords.push([lng, lat])
+    }
+    return coords
+  }
+
+  // Update map with news item points and relationship arcs
   const updateMapData = useCallback((data: GlobeData) => {
     if (!map.current) {
       console.warn('Map not initialized, cannot update data')
       return
     }
 
-    console.log('Updating map with', data.newsItems.length, 'news items')
+    console.log('Updating map with', data.newsItems.length, 'news items and', data.relationships.length, 'relationships')
 
-    // Create news item features - white glowing dots
+    // Create news item features with story count for scaling
     const newsItemFeatures: Feature<Point>[] = data.newsItems.map((item, idx) => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
         coordinates: item.coordinates,
-        },
-        properties: {
+      },
+      properties: {
         id: item.id,
         title: item.title,
         location: item.location,
         created: item.created,
-        // Slight offset for multiple items at same location
-        offset: idx % 10,
+        storyCount: item.storyCount || 1,
         phase: Math.random() * Math.PI * 2,
-          pulse: 1.0,
+        pulse: 1.0,
       }
     }))
 
@@ -157,10 +211,34 @@ export default function Home() {
     const source = map.current.getSource('stories') as mapboxgl.GeoJSONSource
     if (source) {
       source.setData(storiesRef.current)
-      console.log('Map data updated successfully')
-    } else {
-      console.error('News items source not found')
     }
+
+    // Create relationship arc features
+    const arcFeatures: Feature[] = data.relationships.map((rel, idx) => ({
+      type: 'Feature',
+      geometry: {
+        type: 'LineString',
+        coordinates: generateArc(rel.actorCoordinates, rel.targetCoordinates),
+      },
+      properties: {
+        id: `rel-${idx}`,
+        actor: rel.actor,
+        target: rel.target,
+        type: rel.type,
+        sentiment: rel.sentiment,
+        title: rel.title,
+        // Color based on sentiment: hostile=red, tense=orange, neutral=gray
+        color: rel.sentiment === 'hostile' ? '#ff4444' :
+               rel.sentiment === 'tense' ? '#ff8800' : '#888888',
+      }
+    }))
+
+    const arcsSource = map.current.getSource('relationship-arcs') as mapboxgl.GeoJSONSource
+    if (arcsSource) {
+      arcsSource.setData({ type: 'FeatureCollection', features: arcFeatures })
+    }
+
+    console.log('Map data updated successfully')
   }, [])
 
   // Store refs to functions
@@ -218,39 +296,70 @@ export default function Home() {
             data: { type: 'FeatureCollection', features: [] },
           })
 
-          // Outer glow layer
+          // Add relationship arcs source
+          map.current.addSource('relationship-arcs', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] },
+          })
+
+          // Relationship arc glow layer (behind)
+          map.current.addLayer({
+            id: 'arcs-glow',
+            type: 'line',
+            source: 'relationship-arcs',
+            paint: {
+              'line-color': ['get', 'color'],
+              'line-width': 4,
+              'line-opacity': 0.3,
+              'line-blur': 3,
+            },
+          })
+
+          // Relationship arc line layer
+          map.current.addLayer({
+            id: 'arcs-line',
+            type: 'line',
+            source: 'relationship-arcs',
+            paint: {
+              'line-color': ['get', 'color'],
+              'line-width': 2,
+              'line-opacity': 0.8,
+            },
+          })
+
+          // Outer glow layer - scaled by story count
           map.current.addLayer({
             id: 'stories-glow',
             type: 'circle',
             source: 'stories',
             paint: {
-              'circle-radius': 20,
+              'circle-radius': ['+', 15, ['*', 3, ['get', 'storyCount']]],
               'circle-color': '#ffffff',
               'circle-opacity': ['*', 0.15, ['get', 'pulse']],
               'circle-blur': 1,
             },
           })
 
-          // Middle glow
+          // Middle glow - scaled by story count
           map.current.addLayer({
             id: 'stories-glow-inner',
             type: 'circle',
             source: 'stories',
             paint: {
-              'circle-radius': 10,
+              'circle-radius': ['+', 8, ['*', 1.5, ['get', 'storyCount']]],
               'circle-color': '#ffffff',
               'circle-opacity': ['*', 0.3, ['get', 'pulse']],
               'circle-blur': 0.5,
             },
           })
 
-          // Core dot
+          // Core dot - scaled by story count
           map.current.addLayer({
             id: 'stories-core',
             type: 'circle',
             source: 'stories',
             paint: {
-              'circle-radius': 4,
+              'circle-radius': ['+', 3, ['*', 0.8, ['get', 'storyCount']]],
               'circle-color': '#ffffff',
               'circle-opacity': ['*', 0.9, ['get', 'pulse']],
             },
@@ -425,9 +534,21 @@ export default function Home() {
         {isLoading ? (
           <p className="text-sm text-gray-400">Loading...</p>
         ) : globeData && (
-          <p className="text-sm text-gray-400">
-            {globeData.stats.total_news_items} news items across {globeData.stats.total_locations} locations
-          </p>
+          <div className="text-sm text-gray-400">
+            <p>{globeData.stats.total_news_items} stories across {globeData.stats.total_locations} locations</p>
+            {globeData.stats.total_relationships > 0 && (
+              <p className="mt-1">{globeData.stats.total_relationships} conflict relationship{globeData.stats.total_relationships > 1 ? 's' : ''}</p>
+            )}
+            {/* Legend */}
+            <div className="mt-2 pt-2 border-t border-gray-700 flex gap-3 text-xs">
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-0.5 bg-red-500 inline-block"></span> Hostile
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-0.5 bg-orange-500 inline-block"></span> Tense
+              </span>
+            </div>
+          </div>
         )}
       </div>
 
@@ -435,9 +556,16 @@ export default function Home() {
       {selectedNewsItem && (
         <div className="absolute top-4 right-4 w-80 bg-black/80 backdrop-blur rounded-lg p-4 text-white">
           <div className="flex justify-between items-start mb-3">
-            <span className="text-xs text-gray-400 uppercase tracking-wide">
-              {selectedNewsItem.location}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400 uppercase tracking-wide">
+                {selectedNewsItem.location}
+              </span>
+              {selectedNewsItem.storyCount && selectedNewsItem.storyCount > 1 && (
+                <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">
+                  {selectedNewsItem.storyCount} stories
+                </span>
+              )}
+            </div>
             <button
               onClick={() => setSelectedNewsItem(null)}
               className="text-gray-400 hover:text-white"
@@ -458,14 +586,13 @@ export default function Home() {
               minute: '2-digit',
             })}
           </p>
-          <p className="text-xs text-gray-600 mt-2 font-mono">{selectedNewsItem.id}</p>
         </div>
       )}
 
       {/* Hint */}
       {!selectedNewsItem && globeData && (
         <div className="absolute bottom-4 right-4 bg-black/50 rounded px-3 py-1.5 text-xs text-gray-400">
-          Click on a dot to view news item
+          Dot size = story volume • Red arcs = conflicts
         </div>
       )}
     </div>

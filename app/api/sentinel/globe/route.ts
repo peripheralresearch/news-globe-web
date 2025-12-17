@@ -222,44 +222,52 @@ const LOCATION_COORDINATES: Record<string, [number, number]> = {
   'Addis Ababa': [38.7578, 9.0222],
 };
 
-// All known locations for text matching
-const ALL_LOCATIONS = Object.keys({ ...COUNTRY_COORDINATES, ...LOCATION_COORDINATES });
+// Pre-compiled location data for fast matching (compiled once at module load)
+const LOCATION_MATCHERS: Array<{ name: string; regex: RegExp; coordinates: [number, number] }> = [];
 
-// Infer relationship type from story content
-function inferRelationshipType(story: SentinelStory): RelationshipType | null {
-  const text = `${story.title || ''} ${story.summary || ''}`.toLowerCase();
+// Build pre-compiled matchers at module load time
+const allLocations = { ...COUNTRY_COORDINATES, ...LOCATION_COORDINATES };
+for (const [name, coordinates] of Object.entries(allLocations)) {
+  // Escape special regex characters in location names
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  LOCATION_MATCHERS.push({
+    name,
+    regex: new RegExp(`\\b${escaped}\\b`, 'i'),
+    coordinates: coordinates as [number, number],
+  });
+}
 
-  if (/\b(war|attack|strike|missile|bomb|shell|kill|combat|militar\w+ operation|explosion|assault|raid)\b/.test(text)) {
-    return 'CONFLICT';
-  }
-  if (/\b(military|defense|army|navy|air force|weapons|troops|armed forces|drone|forces)\b/.test(text)) {
-    return 'MILITARY';
-  }
-  if (/\b(diplomat|summit|negotiat|treaty|agreement|talks|ambassador|foreign minister|bilateral)\b/.test(text)) {
-    return 'DIPLOMACY';
-  }
-  if (/\b(trade|economic|sanction|tariff|investment|market|finance|currency|gdp)\b/.test(text)) {
-    return 'ECONOMIC';
-  }
-  if (/\b(humanitarian|refugee|aid|crisis|relief|disaster|civilian|casualt|evacuat)\b/.test(text)) {
-    return 'HUMANITARIAN';
-  }
+// Pre-compiled regexes for relationship type inference
+const RELATIONSHIP_PATTERNS = {
+  CONFLICT: /\b(war|attack|strike|missile|bomb|shell|kill|combat|militar\w+ operation|explosion|assault|raid)\b/,
+  MILITARY: /\b(military|defense|army|navy|air force|weapons|troops|armed forces|drone|forces)\b/,
+  DIPLOMACY: /\b(diplomat|summit|negotiat|treaty|agreement|talks|ambassador|foreign minister|bilateral)\b/,
+  ECONOMIC: /\b(trade|economic|sanction|tariff|investment|market|finance|currency|gdp)\b/,
+  HUMANITARIAN: /\b(humanitarian|refugee|aid|crisis|relief|disaster|civilian|casualt|evacuat)\b/,
+} as const;
+
+// Pre-compiled regexes for sentiment inference
+const SENTIMENT_PATTERNS = {
+  tense: /\b(tension|threat|warn|condemn|accuse|hostile|oppose)\b/,
+  cooperative: /\b(cooperat|partner|ally|support|agreement|peace)\b/,
+} as const;
+
+// Infer relationship type from story content (uses pre-compiled patterns)
+function inferRelationshipType(textLower: string): RelationshipType | null {
+  if (RELATIONSHIP_PATTERNS.CONFLICT.test(textLower)) return 'CONFLICT';
+  if (RELATIONSHIP_PATTERNS.MILITARY.test(textLower)) return 'MILITARY';
+  if (RELATIONSHIP_PATTERNS.DIPLOMACY.test(textLower)) return 'DIPLOMACY';
+  if (RELATIONSHIP_PATTERNS.ECONOMIC.test(textLower)) return 'ECONOMIC';
+  if (RELATIONSHIP_PATTERNS.HUMANITARIAN.test(textLower)) return 'HUMANITARIAN';
   return null;
 }
 
-// Infer sentiment
-function inferSentiment(type: RelationshipType | null, story: SentinelStory): RelationshipSentiment {
+// Infer sentiment (uses pre-compiled patterns)
+function inferSentiment(type: RelationshipType | null, textLower: string): RelationshipSentiment {
   if (type === 'CONFLICT') return 'hostile';
   if (type === 'HUMANITARIAN') return 'cooperative';
-
-  const text = `${story.title || ''} ${story.summary || ''}`.toLowerCase();
-
-  if (/\b(tension|threat|warn|condemn|accuse|hostile|oppose)\b/.test(text)) {
-    return 'tense';
-  }
-  if (/\b(cooperat|partner|ally|support|agreement|peace)\b/.test(text)) {
-    return 'cooperative';
-  }
+  if (SENTIMENT_PATTERNS.tense.test(textLower)) return 'tense';
+  if (SENTIMENT_PATTERNS.cooperative.test(textLower)) return 'cooperative';
   return 'neutral';
 }
 
@@ -279,37 +287,32 @@ function findLocationsFromTags(story: SentinelStory): string[] {
   return locations;
 }
 
-// Fallback: Find locations mentioned in story text (if no tags available)
-function findLocationsInStoryText(story: SentinelStory): string[] {
-  const text = `${story.title || ''} ${story.summary || ''}`;
+// Fallback: Find locations mentioned in story text (uses pre-compiled regexes)
+function findLocationsInStoryText(text: string): string[] {
   const found: string[] = [];
-
-  for (const location of ALL_LOCATIONS) {
-    // Use word boundary for more accurate matching
-    const regex = new RegExp(`\\b${location}\\b`, 'i');
-    if (regex.test(text)) {
-      found.push(location);
+  for (const matcher of LOCATION_MATCHERS) {
+    if (matcher.regex.test(text)) {
+      found.push(matcher.name);
     }
   }
-
   return found;
 }
 
 // Main function: Try tags first, fallback to text matching
-function findLocationsInStory(story: SentinelStory): string[] {
+function findLocationsInStory(story: SentinelStory, text: string): string[] {
   // First, try to get locations from tags (most accurate)
   const tagLocations = findLocationsFromTags(story);
   if (tagLocations.length > 0) {
     return tagLocations;
   }
-  
+
   // Fallback to text matching if no location tags found
-  return findLocationsInStoryText(story);
+  return findLocationsInStoryText(text);
 }
 
-// Get coordinates for a location
+// Get coordinates for a location (uses lookup maps)
 function getCoordinates(name: string): [number, number] | null {
-  return COUNTRY_COORDINATES[name] || LOCATION_COORDINATES[name] || null;
+  return allLocations[name] || null;
 }
 
 export async function GET(request: NextRequest) {
@@ -370,16 +373,13 @@ export async function GET(request: NextRequest) {
 
     // Process each story
     for (const story of stories) {
-      const type = inferRelationshipType(story);
-      const sentiment = inferSentiment(type, story);
-      const locations = findLocationsInStory(story);
-      
-      // Log if we found locations from tags vs text matching
-      if (story.tags && Object.values(story.tags).some(t => t.tag_type === 'Location')) {
-        console.log(`Story ${story.id}: Found ${locations.length} location(s) from tags`);
-      } else if (locations.length > 0) {
-        console.log(`Story ${story.id}: Found ${locations.length} location(s) from text matching (no location tags)`);
-      }
+      // Build text once per story for all matching operations
+      const text = `${story.title || ''} ${story.summary || ''}`;
+      const textLower = text.toLowerCase();
+
+      const type = inferRelationshipType(textLower);
+      const sentiment = inferSentiment(type, textLower);
+      const locations = findLocationsInStory(story, text);
 
       // Filter by types if specified
       if (types && types.length > 0 && type && !types.includes(type)) {

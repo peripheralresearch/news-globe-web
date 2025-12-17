@@ -322,7 +322,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const types = searchParams.get('types')?.split(',') as RelationshipType[] | undefined;
     const limitParam = searchParams.get('limit');
-    const limit = limitParam ? Math.min(parseInt(limitParam, 10), 50) : 20; // Default to 20, max 50
+    const limit = limitParam ? Math.min(parseInt(limitParam, 10), 200) : 100; // Default to 100, max 200
 
     // Fetch limited stories for better performance
     const stories = await client.getStories({ limit });
@@ -432,8 +432,9 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Create relationship if multiple locations and has a type
-      if (locations.length >= 2 && type) {
+      // Create relationship if multiple locations are mentioned
+      // Even without a specific type, country pairs indicate geopolitical relevance
+      if (locations.length >= 2) {
         const actor = locations[0];
         const actorCoords = getCoordinates(actor);
 
@@ -447,24 +448,28 @@ export async function GET(request: NextRequest) {
             .filter((t): t is { name: string; coordinates: [number, number] } => t !== null);
 
           if (targetCoords.length > 0) {
+            // Determine relationship type - use inferred or default to neutral observation
+            const relType = type || 'DIPLOMACY'; // Default to diplomacy for multi-country stories
+            const relSentiment = type ? sentiment : 'neutral';
+
             relationships.push({
               actor,
               actor_coordinates: actorCoords,
               targets: targetLocations,
               target_coordinates: targetCoords,
-              type,
-              sentiment,
+              type: relType,
+              sentiment: relSentiment,
               story_id: story.id,
               story_title: story.title,
               story_summary: story.summary,
               description: story.summary,
               created_at: story.created,
             });
+
+            typeCount[relType]++;
+            sentimentCount[relSentiment]++;
           }
         }
-
-        typeCount[type]++;
-        sentimentCount[sentiment]++;
       } else if (type) {
         typeCount[type]++;
         sentimentCount[sentiment]++;

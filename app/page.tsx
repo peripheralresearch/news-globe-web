@@ -61,7 +61,7 @@ export default function Home() {
     try {
       setIsLoading(true)
       console.log('Fetching globe data from /api/sentinel/globe...')
-      const response = await fetch('/api/sentinel/globe?limit=50')
+      const response = await fetch('/api/sentinel/globe?limit=150')
 
       if (!response.ok) {
         console.error('API response not OK:', response.status, response.statusText)
@@ -166,12 +166,11 @@ export default function Home() {
     }
   }, [])
 
-  // Generate arc coordinates between two points (great circle approximation)
+  // Generate straight line coordinates between two points
   const generateArc = (start: [number, number], end: [number, number], numPoints = 50): [number, number][] => {
     const coords: [number, number][] = []
     for (let i = 0; i <= numPoints; i++) {
       const t = i / numPoints
-      // Simple linear interpolation (works well for short arcs)
       const lng = start[0] + t * (end[0] - start[0])
       const lat = start[1] + t * (end[1] - start[1])
       coords.push([lng, lat])
@@ -281,11 +280,11 @@ export default function Home() {
           // Ensure globe projection is set
             map.current.setProjection('globe')
 
-          // Set globe atmosphere with white glow (30% brightness)
+          // Set globe atmosphere with white glow (10% brightness)
             map.current.setFog({
               'horizon-blend': 0.1,
-            color: '#4d4d4d',
-              'high-color': '#4d4d4d',
+            color: '#1a1a1a',
+              'high-color': '#1a1a1a',
               'space-color': '#000000',
             'star-intensity': 0.4,
           })
@@ -300,30 +299,82 @@ export default function Home() {
           map.current.addSource('relationship-arcs', {
             type: 'geojson',
             data: { type: 'FeatureCollection', features: [] },
+            lineMetrics: true, // Enable for line-gradient
           })
 
-          // Relationship arc glow layer (behind)
+          // Shadow layer - gives depth illusion
+          map.current.addLayer({
+            id: 'arcs-shadow',
+            type: 'line',
+            source: 'relationship-arcs',
+            paint: {
+              'line-color': '#000000',
+              'line-width': 6,
+              'line-opacity': 0.2,
+              'line-blur': 4,
+              'line-translate': [2, 2], // Offset shadow
+            },
+          })
+
+          // Outer glow - wide and soft
+          map.current.addLayer({
+            id: 'arcs-glow-outer',
+            type: 'line',
+            source: 'relationship-arcs',
+            paint: {
+              'line-color': ['get', 'color'],
+              'line-width': 12,
+              'line-opacity': 0.15,
+              'line-blur': 6,
+            },
+          })
+
+          // Inner glow
           map.current.addLayer({
             id: 'arcs-glow',
             type: 'line',
             source: 'relationship-arcs',
             paint: {
               'line-color': ['get', 'color'],
-              'line-width': 4,
+              'line-width': 6,
               'line-opacity': 0.3,
-              'line-blur': 3,
+              'line-blur': 2,
             },
           })
 
-          // Relationship arc line layer
+          // Main arc line with gradient (bright at ends, fades at apex)
           map.current.addLayer({
             id: 'arcs-line',
             type: 'line',
             source: 'relationship-arcs',
             paint: {
               'line-color': ['get', 'color'],
-              'line-width': 2,
+              'line-width': 2.5,
+              'line-opacity': 1,
+              // Gradient: bright at start/end, dimmer at middle (simulates distance)
+              'line-gradient': [
+                'interpolate',
+                ['linear'],
+                ['line-progress'],
+                0, ['get', 'color'],
+                0.3, 'rgba(255,255,255,0.9)',
+                0.5, 'rgba(255,255,255,0.6)',
+                0.7, 'rgba(255,255,255,0.9)',
+                1, ['get', 'color'],
+              ],
+            },
+          })
+
+          // Animated dash layer - traveling pulse effect
+          map.current.addLayer({
+            id: 'arcs-dash',
+            type: 'line',
+            source: 'relationship-arcs',
+            paint: {
+              'line-color': '#ffffff',
+              'line-width': 3,
               'line-opacity': 0.8,
+              'line-dasharray': [0, 4, 3], // Will be animated
             },
           })
 
@@ -445,7 +496,7 @@ export default function Home() {
     }
   }, [])
 
-  // Pulse animation
+  // Pulse animation for dots and arc dash
   const animatePulse = useCallback(() => {
     if (!map.current || !map.current.getSource('stories')) return
 
@@ -458,6 +509,7 @@ export default function Home() {
     const now = Date.now()
     const t = ((now - pulseStart.current) / 1000) % 3
 
+    // Animate story dots
     geojson.features.forEach((f: Feature<Point>) => {
       if (f.properties) {
         const phase = f.properties.phase || 0
@@ -465,9 +517,19 @@ export default function Home() {
       }
     })
 
+    // Animate arc dash - traveling pulse along the arc
+    const dashPhase = (now / 50) % 8 // Speed of dash travel
+    const dashArray = [0, dashPhase, 3, 8 - dashPhase]
+
     try {
       const source = map.current.getSource('stories') as mapboxgl.GeoJSONSource
       if (source) source.setData(geojson)
+
+      // Update dash animation
+      if (map.current.getLayer('arcs-dash')) {
+        map.current.setPaintProperty('arcs-dash', 'line-dasharray', dashArray)
+      }
+
       requestAnimationFrame(animatePulse)
     } catch {
       // Map might be removed
@@ -537,15 +599,18 @@ export default function Home() {
           <div className="text-sm text-gray-400">
             <p>{globeData.stats.total_news_items} stories across {globeData.stats.total_locations} locations</p>
             {globeData.stats.total_relationships > 0 && (
-              <p className="mt-1">{globeData.stats.total_relationships} conflict relationship{globeData.stats.total_relationships > 1 ? 's' : ''}</p>
+              <p className="mt-1">{globeData.stats.total_relationships} relationship{globeData.stats.total_relationships > 1 ? 's' : ''} detected</p>
             )}
             {/* Legend */}
-            <div className="mt-2 pt-2 border-t border-gray-700 flex gap-3 text-xs">
+            <div className="mt-2 pt-2 border-t border-gray-700 flex flex-wrap gap-3 text-xs">
               <span className="flex items-center gap-1">
                 <span className="w-3 h-0.5 bg-red-500 inline-block"></span> Hostile
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-3 h-0.5 bg-orange-500 inline-block"></span> Tense
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-0.5 bg-gray-400 inline-block"></span> Neutral
               </span>
             </div>
           </div>

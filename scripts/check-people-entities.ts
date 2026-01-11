@@ -3,12 +3,15 @@ import { createClient } from '@supabase/supabase-js'
 async function checkPeopleEntities() {
   // Use Next.js environment variables
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY
+  const key =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ||
+    process.env.SUPABASE_ANON_KEY
 
   if (!url || !key) {
     console.error('❌ Missing Supabase credentials')
     console.error('   SUPABASE_URL:', url ? 'Set' : 'Missing')
-    console.error('   SUPABASE_ANON_KEY:', key ? 'Set' : 'Missing')
+    console.error('   SUPABASE_KEY:', key ? 'Set' : 'Missing')
     process.exit(1)
   }
 
@@ -106,4 +109,3 @@ async function checkPeopleEntities() {
 }
 
 checkPeopleEntities().catch(console.error)
-

@@ -1,19 +1,51 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
+// Security constants
+const MAX_AMOUNT = 1000000 // $10,000 maximum donation (in cents)
+const MIN_AMOUNT = 100 // $1 minimum donation (in cents)
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'https://geopoliticalmirror.com',
+  'https://www.geopoliticalmirror.com'
+]
+
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { amount } = body
+    // Rate limiting: 5 checkout sessions per IP per 15 minutes
+    const clientId = getClientIdentifier(request)
+    const rateLimitResult = checkRateLimit(clientId, {
+      maxRequests: 5,
+      windowMs: 15 * 60 * 1000, // 15 minutes
+    })
 
-    // Validate amount
-    if (!amount || typeof amount !== 'number' || amount <= 0) {
+    if (!rateLimitResult.allowed) {
       return NextResponse.json(
         {
           status: 'error',
-          message: 'Please enter a valid amount'
+          message: 'Too many requests. Please try again later.'
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString()
+          }
+        }
+      )
+    }
+
+    const body = await request.json()
+    const { amount } = body
+
+    // Validate amount with min/max bounds
+    if (!amount || typeof amount !== 'number' || amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
+      return NextResponse.json(
+        {
+          status: 'error',
+          message: `Please enter a valid amount between $${MIN_AMOUNT / 100} and $${MAX_AMOUNT / 100}`
         },
         { status: 400 }
       )
@@ -26,7 +58,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           status: 'error',
-          message: 'Stripe configuration error'
+          message: 'Service temporarily unavailable'
         },
         { status: 500 }
       )
@@ -34,8 +66,11 @@ export async function POST(request: Request) {
 
     const stripe = new Stripe(stripeSecretKey)
 
-    // Get the base URL for redirect URLs
-    const origin = request.headers.get('origin') || 'http://localhost:3000'
+    // Validate origin to prevent open redirect vulnerability
+    const requestOrigin = request.headers.get('origin')
+    const origin = ALLOWED_ORIGINS.includes(requestOrigin || '')
+      ? requestOrigin
+      : ALLOWED_ORIGINS[0] // Default to localhost for development
 
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
@@ -68,11 +103,11 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     console.error('Create checkout API error:', error)
+    // Don't leak error details to client in production
     return NextResponse.json(
       {
         status: 'error',
-        message: 'Failed to create checkout session',
-        error: error instanceof Error ? error.message : String(error)
+        message: 'Failed to create checkout session. Please try again later.'
       },
       { status: 500 }
     )

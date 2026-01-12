@@ -57,6 +57,10 @@ const FULL_GLOBE_LIMIT = 150
 const IDLE_TIMEOUT = 10000 // 10 seconds before rotation starts
 const ROTATION_SPEED = 0.015 // degrees per frame (slow rotation)
 
+// Entrance animation constants
+const ENTRANCE_DURATION = 5500 // 5.5 seconds for entrance animation
+const ENTRANCE_SPEED_MULTIPLIER = 12 // Start at 12x the idle speed for dramatic entrance
+
 export default function Home() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
@@ -66,6 +70,11 @@ export default function Home() {
   const lastInteractionRef = useRef(Date.now())
   const isRotatingRef = useRef(false)
   const rotationFrameRef = useRef<number | null>(null)
+
+  // Entrance animation refs
+  const entranceAnimationRef = useRef<number | null>(null)
+  const entranceStartTimeRef = useRef<number | null>(null)
+  const hasPlayedEntranceRef = useRef(false)
 
   // Dot pulse animation ref
   const pulseFrameRef = useRef<number | null>(null)
@@ -252,6 +261,54 @@ export default function Home() {
     globeDataRef.current = globeData
   }, [globeData])
 
+  // Entrance animation with smooth deceleration (ease-out)
+  const animateEntrance = useCallback(() => {
+    if (!map.current || !entranceStartTimeRef.current) return
+
+    const elapsed = Date.now() - entranceStartTimeRef.current
+    const progress = Math.min(elapsed / ENTRANCE_DURATION, 1)
+
+    if (progress >= 1) {
+      // Entrance animation complete - transition to idle rotation
+      console.log('✅ Entrance animation complete - starting idle rotation')
+      hasPlayedEntranceRef.current = true
+      entranceAnimationRef.current = null
+      entranceStartTimeRef.current = null
+
+      // Immediately start idle rotation (don't wait for IDLE_TIMEOUT)
+      isRotatingRef.current = true
+      lastInteractionRef.current = Date.now()
+
+      // Continue with idle speed rotation (global rotation)
+      const continueIdleRotation = () => {
+        if (!map.current || !isRotatingRef.current) return
+
+        const center = map.current.getCenter()
+        const newLng = center.lng + ROTATION_SPEED
+        map.current.setCenter([newLng, center.lat])
+
+        rotationFrameRef.current = requestAnimationFrame(continueIdleRotation)
+      }
+
+      rotationFrameRef.current = requestAnimationFrame(continueIdleRotation)
+      return
+    }
+
+    // Ease-out quintic easing: 1 - (1 - t)^5 (very aggressive deceleration)
+    const easeOut = 1 - Math.pow(1 - progress, 5)
+
+    // Interpolate from fast speed to idle speed
+    const currentSpeed = ROTATION_SPEED * ENTRANCE_SPEED_MULTIPLIER * (1 - easeOut) +
+                         ROTATION_SPEED * easeOut
+
+    // Rotate the globe
+    const center = map.current.getCenter()
+    const newLng = center.lng + currentSpeed
+    map.current.setCenter([newLng, center.lat])
+
+    entranceAnimationRef.current = requestAnimationFrame(animateEntrance)
+  }, [])
+
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current) {
@@ -276,10 +333,14 @@ export default function Home() {
         mapboxgl.accessToken = token
 
         console.log('✅ Creating map instance...')
+        // Random starting longitude for varied entrance animation
+        const randomLng = Math.random() * 360 - 180 // -180 to 180
+        console.log('🎲 Random starting position:', randomLng)
+
         map.current = new mapboxgl.Map({
           container: mapContainer.current!,
           style: 'mapbox://styles/mapbox/dark-v11',
-          center: [20, 30],
+          center: [randomLng, 30],
           zoom: 0.5,
           projection: 'globe' as unknown as mapboxgl.Projection,
           attributionControl: false,
@@ -358,6 +419,13 @@ export default function Home() {
             document.querySelectorAll('.mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib')
               .forEach(el => el.remove())
           }, 100)
+
+          // Start entrance animation
+          if (!hasPlayedEntranceRef.current) {
+            console.log('🎬 Starting entrance animation')
+            entranceStartTimeRef.current = Date.now()
+            entranceAnimationRef.current = requestAnimationFrame(animateEntrance)
+          }
 
           // Animate dot pulsing glow with different phase offsets per layer
           const animatePulse = () => {
@@ -443,6 +511,13 @@ export default function Home() {
           if (props && props.location && globeDataRef.current) {
             console.log('🎯 Clicked location:', props.location)
 
+            // Stop entrance animation if still running
+            if (entranceAnimationRef.current) {
+              cancelAnimationFrame(entranceAnimationRef.current)
+              entranceAnimationRef.current = null
+              hasPlayedEntranceRef.current = true
+            }
+
             // Stop any rotation that might be happening
             lastInteractionRef.current = Date.now()
             if (isRotatingRef.current) {
@@ -491,6 +566,13 @@ export default function Home() {
         const interactionEvents = ['mousedown', 'touchstart', 'wheel', 'dragstart']
         interactionEvents.forEach(event => {
           map.current?.on(event, () => {
+            // Stop entrance animation if still running
+            if (entranceAnimationRef.current) {
+              cancelAnimationFrame(entranceAnimationRef.current)
+              entranceAnimationRef.current = null
+              hasPlayedEntranceRef.current = true
+            }
+
             lastInteractionRef.current = Date.now()
             if (isRotatingRef.current) {
               isRotatingRef.current = false
@@ -513,6 +595,9 @@ export default function Home() {
 
     return () => {
       // Clean up animations
+      if (entranceAnimationRef.current) {
+        cancelAnimationFrame(entranceAnimationRef.current)
+      }
       if (rotationFrameRef.current) {
         cancelAnimationFrame(rotationFrameRef.current)
       }
@@ -532,7 +617,7 @@ export default function Home() {
         map.current = null
       }
     }
-  }, [loadGlobeData, updateMapData])
+  }, [loadGlobeData, updateMapData, animateEntrance])
 
 
   // Stop idle rotation

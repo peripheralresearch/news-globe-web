@@ -30,14 +30,7 @@ interface LocationAggregate {
     sourceUrl?: string | null
     hasPhoto?: boolean | null
     hasVideo?: boolean | null
-    media?: Array<{
-      id: number
-      mediaType: string
-      publicUrl: string
-      filename: string | null
-      width: number | null
-      height: number | null
-    }> | null
+    mediaUrl?: string | null
   }>
 }
 
@@ -56,6 +49,8 @@ const FULL_GLOBE_LIMIT = 150
 
 const IDLE_TIMEOUT = 10000 // 10 seconds before rotation starts
 const ROTATION_SPEED = 0.015 // degrees per frame (slow rotation)
+const ZOOM_OUT_TIMEOUT = 60000 // 1 minute before auto zoom-out when viewing story
+const INITIAL_ZOOM = 0.5 // Initial zoom level for globe view
 
 // Entrance animation constants
 const ENTRANCE_DURATION = 5500 // 5.5 seconds for entrance animation
@@ -70,6 +65,7 @@ export default function Home() {
   const lastInteractionRef = useRef(Date.now())
   const isRotatingRef = useRef(false)
   const rotationFrameRef = useRef<number | null>(null)
+  const zoomOutTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Entrance animation refs
   const entranceAnimationRef = useRef<number | null>(null)
@@ -88,11 +84,137 @@ export default function Home() {
   const [selectedLocation, setSelectedLocation] = useState<LocationAggregate | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [mapError, setMapError] = useState<string | null>(null)
-  const [expandedStories, setExpandedStories] = useState<Set<number>>(() => new Set())
+  const [expandedStories, setExpandedStories] = useState<Set<string>>(() => new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearchResults, setShowSearchResults] = useState(false)
+  const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street')
+  const [isTrendingCollapsed, setIsTrendingCollapsed] = useState(false)
 
   const brandingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Toggle map style handler
+  const toggleMapStyle = useCallback(() => {
+    if (!map.current) return
+
+    const newStyle = mapStyle === 'street' ? 'satellite' : 'street'
+    const styleUrl = newStyle === 'street'
+      ? 'mapbox://styles/mapbox/dark-v11'
+      : 'mapbox://styles/mapbox/satellite-streets-v12'
+
+    setMapStyle(newStyle)
+
+    // Store current sources and layers data before style change
+    const storiesData = storiesRef.current
+
+    // Set new style
+    map.current.setStyle(styleUrl)
+
+    // Re-add custom layers and data after style loads
+    map.current.once('style.load', () => {
+      if (!map.current) return
+
+      // Restore globe projection and atmosphere
+      map.current.setProjection('globe')
+
+      // Restore atmosphere
+      map.current.setFog({
+        'horizon-blend': 0.1,
+        color: '#1a1a1a',
+        'high-color': '#1a1a1a',
+        'space-color': '#000000',
+        'star-intensity': 0.4,
+      })
+
+      // Re-add stories source (check if it already exists first)
+      if (!map.current.getSource('stories')) {
+        map.current.addSource('stories', {
+          type: 'geojson',
+          data: storiesData,
+        })
+      }
+
+      // Re-add glow layers (check if they already exist first)
+      for (let i = 0; i < 3; i++) {
+        const layerId = `stories-glow-${i}`
+        if (!map.current.getLayer(layerId)) {
+          map.current.addLayer({
+            id: layerId,
+            type: 'circle',
+            source: 'stories',
+            filter: ['==', ['%', ['to-number', ['get', 'id']], 3], i],
+            paint: {
+              'circle-radius': 4,
+              'circle-color': '#ffffff',
+              'circle-opacity': 0.3,
+              'circle-blur': 1,
+            },
+          })
+        }
+      }
+
+      // Re-add core dots layer (check if it already exists first)
+      if (!map.current.getLayer('stories-dots')) {
+        map.current.addLayer({
+          id: 'stories-dots',
+          type: 'circle',
+          source: 'stories',
+          paint: {
+            'circle-radius': [
+              'interpolate',
+              ['linear'],
+              ['coalesce', ['get', 'storyCount'], 1],
+              1, 1.5,
+              25, 4
+            ],
+            'circle-color': '#ffffff',
+            'circle-opacity': 0.9,
+          },
+        })
+      }
+
+      // Re-add country border highlight layers (check if they already exist first)
+      if (!map.current.getLayer('country-border-glow')) {
+        map.current.addLayer({
+          id: 'country-border-glow',
+          type: 'line',
+          source: {
+            type: 'geojson',
+            data: {
+              type: 'FeatureCollection',
+              features: [],
+            },
+          },
+          paint: {
+            'line-color': '#ffffff',
+            'line-width': 6,
+            'line-opacity': 0.5,
+            'line-blur': 4,
+          },
+        })
+      }
+
+      if (!map.current.getLayer('country-border-line')) {
+        map.current.addLayer({
+          id: 'country-border-line',
+          type: 'line',
+          source: {
+            type: 'geojson',
+            data: {
+              type: 'FeatureCollection',
+              features: [],
+            },
+          },
+          paint: {
+            'line-color': '#ffffff',
+            'line-width': 3,
+            'line-opacity': 1.0,
+          },
+        })
+      }
+
+      console.log('Map style changed to:', newStyle)
+    })
+  }, [mapStyle])
 
   // Load globe data
   const fetchGlobePage = useCallback(async (limit: number) => {
@@ -124,14 +246,7 @@ export default function Home() {
           sourceUrl: s.source_url || null,
           hasPhoto: s.has_photo || null,
           hasVideo: s.has_video || null,
-          media: s.media?.map((m: any) => ({
-            id: m.id,
-            mediaType: m.media_type,
-            publicUrl: m.public_url,
-            filename: m.filename,
-            width: m.width,
-            height: m.height,
-          })) || null,
+          mediaUrl: s.media_url || null,
         }))
 
         if (mappedStories.length === 0) continue
@@ -188,10 +303,10 @@ export default function Home() {
 
       fetchGlobePage(FULL_GLOBE_LIMIT)
         .then(fullData => {
-          if (fullData && updateMapDataRef.current) {
+          if (fullData) {
             setGlobeData(fullData)
             globeDataRef.current = fullData
-            updateMapDataRef.current(fullData)
+            updateMapData(fullData)
           }
         })
         .catch(err => {
@@ -209,7 +324,7 @@ export default function Home() {
     }
   }, [fetchGlobePage])
 
-  const toggleStoryExpansion = useCallback((storyId: number) => {
+  const toggleStoryExpansion = useCallback((storyId: string) => {
     setExpandedStories(prev => {
       const next = new Set(prev)
       if (next.has(storyId)) {
@@ -610,6 +725,9 @@ export default function Home() {
       if (brandingTimeoutRef.current) {
         clearTimeout(brandingTimeoutRef.current)
       }
+      if (zoomOutTimeoutRef.current) {
+        clearTimeout(zoomOutTimeoutRef.current)
+      }
 
       // Clean up map - map.remove() handles all event listener cleanup
       if (map.current) {
@@ -655,19 +773,19 @@ export default function Home() {
   const animateRotation = useCallback(() => {
     if (!map.current || !isRotatingRef.current) return
 
-    // If a country is selected, rotate around it (change bearing)
-    // Otherwise, rotate globally (change center longitude)
-    if (selectedLocation && isCountryLocation(selectedLocation)) {
-      const currentBearing = map.current.getBearing()
-      map.current.setBearing(currentBearing + ROTATION_SPEED * 3) // Rotate around country
-    } else {
-      const center = map.current.getCenter()
-      const newLng = center.lng + ROTATION_SPEED
-      map.current.setCenter([newLng, center.lat]) // Global rotation
+    // Don't rotate when viewing a specific location/story
+    if (selectedLocation) {
+      stopRotation()
+      return
     }
 
+    // Global rotation
+    const center = map.current.getCenter()
+    const newLng = center.lng + ROTATION_SPEED
+    map.current.setCenter([newLng, center.lat])
+
     rotationFrameRef.current = requestAnimationFrame(animateRotation)
-  }, [selectedLocation, isCountryLocation])
+  }, [selectedLocation, stopRotation])
 
   // Check for idle state and start rotation
   const checkIdleState = useCallback(() => {
@@ -685,24 +803,66 @@ export default function Home() {
     return () => clearInterval(idleCheckInterval)
   }, [checkIdleState])
 
+  // Auto zoom-out after 1 minute when viewing a story
+  useEffect(() => {
+    // Clear any existing timeout
+    if (zoomOutTimeoutRef.current) {
+      clearTimeout(zoomOutTimeoutRef.current)
+      zoomOutTimeoutRef.current = null
+    }
+
+    // If a location is selected, start the zoom-out timer
+    if (selectedLocation && map.current) {
+      console.log('⏱️ Starting 1-minute auto zoom-out timer')
+      zoomOutTimeoutRef.current = setTimeout(() => {
+        console.log('⏰ 1 minute elapsed - zooming back out to globe view')
+        if (map.current) {
+          map.current.flyTo({
+            center: [0, 30],
+            zoom: INITIAL_ZOOM,
+            pitch: 0,
+            bearing: 0,
+            duration: 2000, // 2 second animation
+          })
+        }
+        // Clear selection to resume rotation
+        setSelectedLocation(null)
+        // Reset interaction timer so rotation starts after normal idle timeout
+        lastInteractionRef.current = Date.now()
+      }, ZOOM_OUT_TIMEOUT)
+    }
+
+    // Cleanup on unmount or when selectedLocation changes
+    return () => {
+      if (zoomOutTimeoutRef.current) {
+        clearTimeout(zoomOutTimeoutRef.current)
+        zoomOutTimeoutRef.current = null
+      }
+    }
+  }, [selectedLocation])
+
   // Update country border highlight when selection changes
   useEffect(() => {
     if (!map.current) return
 
     const updateBorderHighlight = async () => {
+      if (!map.current) return
+
       if (selectedLocation && isCountryLocation(selectedLocation)) {
         // Query actual country boundaries from Mapbox vector tiles
         const countryName = selectedLocation.name.trim()
         console.log('🔍 Border Query: Searching for country:', countryName)
 
         // Wait for map to be fully loaded and styled
-        if (!map.current.isStyleLoaded()) {
+        if (map.current && !map.current.isStyleLoaded()) {
           console.log('⏳ Map style not loaded, waiting...')
           await new Promise((resolve) => {
             map.current?.once('idle', resolve)
           })
           console.log('✅ Map style loaded')
         }
+
+        if (!map.current) return
 
         try {
           // Query rendered features at the country's center point
@@ -833,6 +993,43 @@ export default function Home() {
         style={{ minHeight: '100vh', minWidth: '100vw' }}
       />
 
+      {/* Top Right Controls - Map Style Toggle & Stories Link */}
+      {globeData && !isLoading && !selectedLocation && (
+        <div className="absolute top-4 right-4 z-10 flex gap-2">
+          <a
+            href="/stories"
+            className="px-4 py-2.5 bg-black/80 backdrop-blur border border-white/20 rounded-lg text-white text-sm hover:bg-white/10 hover:border-white/40 transition-all flex items-center gap-2"
+            title="View stories feed"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+            </svg>
+            <span>Stories</span>
+          </a>
+          <button
+            onClick={toggleMapStyle}
+            className="px-4 py-2.5 bg-black/80 backdrop-blur border border-white/20 rounded-lg text-white text-sm hover:bg-white/10 hover:border-white/40 transition-all flex items-center gap-2"
+            title={`Switch to ${mapStyle === 'street' ? 'satellite' : 'street'} view`}
+          >
+            {mapStyle === 'street' ? (
+              <>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Satellite</span>
+              </>
+            ) : (
+              <>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+                <span>Street</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       {/* Search Bar - Top Center */}
       {globeData && !isLoading && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-96 max-w-[90vw] z-10">
@@ -910,12 +1107,10 @@ export default function Home() {
 
       {/* Trending Section - Top Left */}
       {globeData && !isLoading && (() => {
-        // Filter locations based on selection
-        const locationsToScan = selectedLocation
-          ? [selectedLocation]
-          : globeData.locations
+        // Always show global trending stories (top stories of the day)
+        const locationsToScan = globeData.locations
 
-        // Flatten all stories from filtered locations
+        // Flatten all stories from all locations
         const allStories: Array<{
           story: LocationAggregate['stories'][0]
           location: LocationAggregate
@@ -952,36 +1147,85 @@ export default function Home() {
           .slice(0, 8)
 
         return (
-          <div className="absolute top-4 left-4 w-96 max-w-[90vw] bg-black/80 backdrop-blur rounded-lg p-4 text-white max-h-[80vh] overflow-y-auto">
-            <div className="mb-3">
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">
-                  TRENDING
-                </h2>
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-gray-400 uppercase">LIVE</span>
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                  </span>
+          <div className="absolute top-4 left-4 w-96 max-w-[90vw] bg-black/80 backdrop-blur rounded-lg text-white overflow-hidden transition-all duration-300">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 flex-1">
+                  <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">
+                    TRENDING
+                  </h2>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-gray-400 uppercase">LIVE</span>
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                  </div>
+                  {isTrendingCollapsed && (
+                    <span className="text-xs text-gray-500 ml-1">
+                      ({trendingStories.length})
+                    </span>
+                  )}
                 </div>
+                <button
+                  onClick={() => setIsTrendingCollapsed(!isTrendingCollapsed)}
+                  className="p-1 hover:bg-white/10 rounded transition-colors flex-shrink-0"
+                  title={isTrendingCollapsed ? 'Expand trending' : 'Collapse trending'}
+                  aria-label={isTrendingCollapsed ? 'Expand trending panel' : 'Collapse trending panel'}
+                >
+                  <svg
+                    className={`h-4 w-4 text-gray-400 transition-transform duration-300 ${
+                      isTrendingCollapsed ? 'rotate-90' : 'rotate-0'
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
               </div>
-              {selectedLocation && (
-                <p className="text-xs text-gray-500 mt-1">
-                  in {selectedLocation.name}
+              {!isTrendingCollapsed && (
+                <p className="text-xs text-gray-500 mb-3">
+                  Top stories worldwide
                 </p>
               )}
             </div>
-            <div className="space-y-3">
+            <div
+              className={`transition-all duration-300 ease-in-out ${
+                isTrendingCollapsed ? 'max-h-0 opacity-0' : 'max-h-[70vh] opacity-100'
+              }`}
+              style={{
+                overflow: isTrendingCollapsed ? 'hidden' : 'auto',
+              }}
+            >
+              <div className="px-4 pb-4 space-y-3">
               {trendingStories.map((trending, idx) => (
                 <button
                   key={idx}
                   onClick={() => {
                     const loc = trending.firstItem.location
+                    console.log('🔥 Trending story clicked:', loc.name, 'at', loc.coordinates, 'zoom:', loc.defaultZoom)
+
+                    // Cancel any entrance animation
+                    if (entranceAnimationRef.current) {
+                      cancelAnimationFrame(entranceAnimationRef.current)
+                      entranceAnimationRef.current = null
+                    }
+
+                    // Stop idle rotation
+                    resetInteraction()
+
                     setSelectedLocation(loc)
                     if (map.current) {
                       const isCountry = isCountryLocation(loc)
                       const zoom = loc.defaultZoom || 4
+                      console.log('✈️ Flying to trending location:', loc.coordinates, 'zoom:', zoom, 'pitch:', isCountry ? 45 : 0)
                       map.current.flyTo({
                         center: loc.coordinates,
                         zoom: zoom,
@@ -1013,6 +1257,7 @@ export default function Home() {
                   </div>
                 </button>
               ))}
+              </div>
             </div>
           </div>
         )
@@ -1022,7 +1267,7 @@ export default function Home() {
       {selectedLocation && (
         <div className="absolute top-4 right-4 w-96 max-w-[90vw] bg-black/80 backdrop-blur rounded-lg p-4 text-white max-h-[80vh] overflow-y-auto">
           <div className="flex justify-between items-start mb-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1">
               <span className="text-xs text-gray-400 uppercase tracking-wide">
                 {selectedLocation.name}
               </span>
@@ -1030,17 +1275,33 @@ export default function Home() {
                 {selectedLocation.storyCount} stories
               </span>
             </div>
-            <button
-              onClick={() => setSelectedLocation(null)}
-              className="text-gray-400 hover:text-white"
-            >
-              ✕
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleMapStyle}
+                className="p-1.5 hover:bg-white/10 rounded transition-colors"
+                title={`Switch to ${mapStyle === 'street' ? 'satellite' : 'street'} view`}
+              >
+                {mapStyle === 'street' ? (
+                  <svg className="h-4 w-4 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                ) : (
+                  <svg className="h-4 w-4 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                  </svg>
+                )}
+              </button>
+              <button
+                onClick={() => setSelectedLocation(null)}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           <div className="text-sm text-gray-200 space-y-2">
             {selectedLocation.stories.slice(0, 20).map((s) => {
-              const firstMedia = s.media?.[0]; // Get first media (image or video)
               const summaryText = (s.summary || s.title || 'No content').trim()
               const isLongSummary = summaryText.length > STORY_SUMMARY_LIMIT
               const isExpanded = expandedStories.has(s.id)
@@ -1070,10 +1331,10 @@ export default function Home() {
                       {/* Source and link */}
                       <div className="flex items-center justify-between gap-3 text-[11px] text-gray-400">
                         <div className="flex items-center gap-1.5">
-                          {/* Telegram icon */}
+                          {/* Source icon (Telegram or RSS) */}
                           <img
                             src="/telegram-icon.png"
-                            alt="Telegram"
+                            alt="Source"
                             className="h-3.5 w-3.5 opacity-60"
                           />
                           <span className="uppercase text-[10px] tracking-wider">{s.sourceName || 'Source unknown'}</span>
@@ -1114,30 +1375,35 @@ export default function Home() {
                     </div>
 
                     {/* Right side - media (image or video thumbnail) */}
-                    {firstMedia && (
+                    {s.mediaUrl && (
                       <a
-                        href={firstMedia.publicUrl}
+                        href={s.mediaUrl}
                         target="_blank"
                         rel="noreferrer noopener"
-                        className="flex-shrink-0 block w-20 h-20 rounded overflow-hidden border border-white/20 hover:border-white/40 transition-colors bg-black/30"
-                        title={firstMedia.filename || 'View media'}
+                        className="flex-shrink-0 block w-40 h-40 rounded overflow-hidden border border-white/20 hover:border-white/40 transition-colors bg-black/30"
+                        title="View media"
                       >
-                        {firstMedia.mediaType === 'image' || firstMedia.mediaType === 'photo' ? (
+                        {s.hasPhoto ? (
                           <img
-                            src={firstMedia.publicUrl}
-                            alt={firstMedia.filename || 'Post image'}
+                            src={`/api/proxy-image?url=${encodeURIComponent(s.mediaUrl)}`}
+                            alt="Story image"
                             className="h-full w-full object-cover"
                             loading="lazy"
+                            onError={(e) => {
+                              console.error('Image failed to load:', s.mediaUrl)
+                              // Hide image container on error
+                              e.currentTarget.style.display = 'none'
+                            }}
                           />
-                        ) : (
+                        ) : s.hasVideo ? (
                           <video
-                            src={firstMedia.publicUrl}
+                            src={`/api/proxy-image?url=${encodeURIComponent(s.mediaUrl)}`}
                             className="h-full w-full object-cover"
                             muted
                             playsInline
                             preload="metadata"
                           />
-                        )}
+                        ) : null}
                       </a>
                     )}
                   </div>

@@ -20,7 +20,7 @@ interface LocationAggregate {
 interface LocationPost {
   location_id: number;
   post_id: number;
-  post_internal_id: number;
+  post_internal_id: string;
   post_date: string;
   post_text: string;
   channel_name: string;
@@ -28,6 +28,7 @@ interface LocationPost {
   has_photo: boolean;
   has_video: boolean;
   priority: number;
+  media_url: string | null;
 }
 
 export async function GET(request: NextRequest) {
@@ -109,32 +110,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Step 3: Fetch media for posts (if needed)
-    const postInternalIds = (locationPosts as LocationPost[] || []).map(p => p.post_internal_id);
-    const uniquePostIds = [...new Set(postInternalIds)];
-
-    const { data: mediaData, error: mediaError } = await supabase
-      .from('media')
-      .select('id, post_id, media_type, public_url, filename')
-      .in('post_id', uniquePostIds);
-
-    if (mediaError) {
-      console.warn('Globe API - Media query warning:', mediaError);
-      // Continue without media - not critical
-    }
-
-    // Create media lookup map
-    const mediaByPostId = new Map<number, typeof mediaData>();
-    if (mediaData) {
-      for (const media of mediaData) {
-        if (!mediaByPostId.has(media.post_id)) {
-          mediaByPostId.set(media.post_id, []);
-        }
-        mediaByPostId.get(media.post_id)!.push(media);
-      }
-    }
-
-    // Step 4: Group posts by location and format response
+    // Step 3: Group posts by location and format response
     const locationPostsMap = new Map<number, LocationPost[]>();
     for (const post of (locationPosts as LocationPost[] || [])) {
       if (!locationPostsMap.has(post.location_id)) {
@@ -150,9 +126,7 @@ export async function GET(request: NextRequest) {
         const channelUsername = post.channel_username?.replace(/^@/, '');
         const sourceUrl = channelUsername && post.post_id
           ? `https://t.me/${channelUsername}/${post.post_id}`
-          : null;
-
-        const media = mediaByPostId.get(post.post_internal_id) || null;
+          : post.channel_username; // Use channel_username as fallback (may be RSS feed URL)
 
         return {
           id: post.post_internal_id,
@@ -164,7 +138,7 @@ export async function GET(request: NextRequest) {
           source_url: sourceUrl,
           has_photo: post.has_photo,
           has_video: post.has_video,
-          media: media,
+          media_url: post.media_url,
         };
       });
 

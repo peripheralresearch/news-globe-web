@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Loading Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #000;
+            color: #fff;
+        }
+        .test-image {
+            margin: 20px 0;
+            border: 1px solid #333;
+            padding: 10px;
+        }
+        img {
+            max-width: 300px;
+            border: 1px solid #666;
+        }
+        .error {
+            color: #f00;
+        }
+        .success {
+            color: #0f0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Oracle Cloud Storage Image Loading Test</h1>
+
+    <div class="test-image">
+        <h3>Test 1: Direct IMG tag</h3>
+        <img
+            src="https://objectstorage.ap-melbourne-1.oraclecloud.com/n/axxt2lb4tgkv/b/eventhorizon-sentinel-media-mel01/o/rss/rss-times-of-india-world/91c958fa2a34.png"
+            alt="Test image 1"
+            onload="document.getElementById('status1').innerHTML = '<span class=success>✓ Loaded successfully</span>'"
+            onerror="document.getElementById('status1').innerHTML = '<span class=error>✗ Failed to load</span>'"
+        />
+        <div id="status1">⏳ Loading...</div>
+    </div>
+
+    <div class="test-image">
+        <h3>Test 2: JPG from Channel NewsAsia</h3>
+        <img
+            src="https://objectstorage.ap-melbourne-1.oraclecloud.com/n/axxt2lb4tgkv/b/eventhorizon-sentinel-media-mel01/o/rss/rss-channel-newsasia/140c279a7771.jpg"
+            alt="Test image 2"
+            onload="document.getElementById('status2').innerHTML = '<span class=success>✓ Loaded successfully</span>'"
+            onerror="document.getElementById('status2').innerHTML = '<span class=error>✗ Failed to load</span>'"
+        />
+        <div id="status2">⏳ Loading...</div>
+    </div>
+
+    <div class="test-image">
+        <h3>Test 3: JPG from Telegram</h3>
+        <img
+            src="https://objectstorage.ap-melbourne-1.oraclecloud.com/n/axxt2lb4tgkv/b/eventhorizon-sentinel-media-mel01/o/telegram/telegram-clash-report/66771.jpg"
+            alt="Test image 3"
+            onload="document.getElementById('status3').innerHTML = '<span class=success>✓ Loaded successfully</span>'"
+            onerror="document.getElementById('status3').innerHTML = '<span class=error>✗ Failed to load</span>'"
+        />
+        <div id="status3">⏳ Loading...</div>
+    </div>
+
+    <script>
+        // Log any console errors
+        window.addEventListener('error', function(e) {
+            console.error('Error:', e.message, e.filename, e.lineno);
+        });
+    </script>
+</body>
+</html>

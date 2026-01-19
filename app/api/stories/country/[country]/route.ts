@@ -101,10 +101,10 @@ export async function GET(
       return {
         id: story.id,
         title: story.title,
-        summary: story.summary,
+        description: story.summary,
         created: story.created,
         updated: story.updated,
-        newsItems: newsItems,
+        news_item: newsItems,
         newsItemCount: newsItems.length
       }
     })

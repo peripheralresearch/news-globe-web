@@ -3,14 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { Timeline, type TimelineEvent } from '@/app/components/Timeline'
-import { useMapLabelFilter } from '@/app/hooks/useMapLabelFilter'
-
-interface TimelineData {
-  title: string
-  subtitle: string
-  events: TimelineEvent[]
-}
 
 interface VideoMarker {
   id: string
@@ -22,11 +14,6 @@ interface VideoMarker {
   description?: string
 }
 
-interface LocationGroup {
-  coordinates: [number, number]
-  events: TimelineEvent[]
-}
-
 export default function ICEPage() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
@@ -34,53 +21,19 @@ export default function ICEPage() {
   const markersRef = useRef<mapboxgl.Marker[]>([])
 
   const [isLoading, setIsLoading] = useState(true)
-  const [timeline, setTimeline] = useState<TimelineData | null>(null)
   const [videos, setVideos] = useState<VideoMarker[]>([])
-  const [locationGroups, setLocationGroups] = useState<LocationGroup[]>([])
-  const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null)
   const [currentVideo, setCurrentVideo] = useState<VideoMarker | null>(null)
-  const [showTimeline, setShowTimeline] = useState(true)
 
-  // Map label filtering
-  const { filterByText, clearFilter } = useMapLabelFilter({
-    map: map.current,
-    enabled: true
-  })
-
-  // Load timeline data
+  // Load video data
   useEffect(() => {
     async function loadData() {
       try {
-        const timelineRes = await fetch('/data/USA/timeline.json')
-        const timelineData: TimelineData = await timelineRes.json()
-        setTimeline(timelineData)
-
-        // Load video data
         const videosRes = await fetch('/data/USA/videos.json')
         const videosData = await videosRes.json()
         setVideos(videosData.videos || [])
-
-        // Group events by location
-        const groups = new Map<string, TimelineEvent[]>()
-        timelineData.events.forEach(event => {
-          if (event.location) {
-            const key = `${event.location.latitude.toFixed(4)},${event.location.longitude.toFixed(4)}`
-            if (!groups.has(key)) {
-              groups.set(key, [])
-            }
-            groups.get(key)!.push(event)
-          }
-        })
-
-        const locationGroups: LocationGroup[] = Array.from(groups.entries()).map(([key, events]) => ({
-          coordinates: [events[0].location!.longitude, events[0].location!.latitude],
-          events
-        }))
-
-        setLocationGroups(locationGroups)
         setIsLoading(false)
       } catch (error) {
-        console.error('Error loading data:', error)
+        console.error('Error loading videos:', error)
         setIsLoading(false)
       }
     }
@@ -119,67 +72,51 @@ export default function ICEPage() {
     }
   }, [])
 
-  // Add markers when videos load
+  // Add video markers to map
   useEffect(() => {
-    if (!map.current || locationGroups.length === 0) return
+    if (!map.current || videos.length === 0) return
 
     // Clear existing markers
     markersRef.current.forEach(marker => marker.remove())
     markersRef.current = []
 
-    locationGroups.forEach(group => {
-      const eventType = group.events[0].type
-      const eventCount = group.events.length
-
-      // Color based on event type
-      const colors = {
-        incident: '#ef4444',
-        protest: '#3b82f6',
-        statement: '#a855f7',
-        action: '#22c55e',
-        response: '#eab308'
-      }
-
-      const color = colors[eventType]
-
+    videos.forEach(video => {
       // Create custom marker element
       const el = document.createElement('div')
       el.className = 'custom-marker'
       el.style.cssText = `
-        width: ${eventCount > 1 ? '40px' : '30px'};
-        height: ${eventCount > 1 ? '40px' : '30px'};
-        background-color: ${color};
+        width: 30px;
+        height: 30px;
+        background-color: #3b82f6;
         border: 3px solid rgba(255, 255, 255, 0.9);
         border-radius: 50%;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: bold;
         color: white;
-        font-size: ${eventCount > 1 ? '14px' : '12px'};
+        font-size: 12px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         animation: pulse 2s ease-in-out infinite;
       `
 
-      if (eventCount > 1) {
-        el.textContent = eventCount.toString()
-      }
+      // Add video icon
+      el.innerHTML = '▶'
 
       // Create marker
       const marker = new mapboxgl.Marker(el)
-        .setLngLat(group.coordinates)
+        .setLngLat(video.coordinates)
         .addTo(map.current!)
 
       // Click handler
       el.addEventListener('click', () => {
-        handleEventClick(group.events[0])
+        handleVideoClick(video)
       })
 
       markersRef.current.push(marker)
     })
 
-    // Add pulse animation to CSS
+    // Add pulse animation
     const style = document.createElement('style')
     style.textContent = `
       @keyframes pulse {
@@ -197,60 +134,25 @@ export default function ICEPage() {
       style.id = 'marker-pulse-animation'
       document.head.appendChild(style)
     }
-  }, [locationGroups])
+  }, [videos])
 
-  // Handle event selection
-  const handleEventClick = useCallback((event: TimelineEvent) => {
-    setSelectedEvent(event)
+  // Handle video selection
+  const handleVideoClick = useCallback((video: VideoMarker) => {
+    setCurrentVideo(video)
 
-    // Fly to location
-    if (event.location && map.current) {
+    // Fly to video location
+    if (map.current) {
       map.current.flyTo({
-        center: [event.location.longitude, event.location.latitude],
+        center: video.coordinates,
         zoom: 14,
         duration: 1500
       })
     }
+  }, [])
 
-    // Apply label filtering
-    if (event.description && event.location) {
-      filterByText(event.description, event.location.name)
-    }
-
-    // Load first video if available
-    if (event.videoIds && event.videoIds.length > 0) {
-      const videoId = event.videoIds[0]
-      const video = videos.find(v => v.id === videoId)
-      if (video) {
-        setCurrentVideo(video)
-      }
-    } else {
-      setCurrentVideo(null)
-    }
-  }, [videos, filterByText])
-
-  // Handle video change
-  const handleVideoChange = useCallback((videoId: string) => {
-    const video = videos.find(v => v.id === videoId)
-    if (video) {
-      setCurrentVideo(video)
-
-      // Fly to video location
-      if (map.current) {
-        map.current.flyTo({
-          center: video.coordinates,
-          zoom: 14,
-          duration: 1000
-        })
-      }
-    }
-  }, [videos])
-
-  // Close event/video
+  // Close video
   const handleClose = useCallback(() => {
-    setSelectedEvent(null)
     setCurrentVideo(null)
-    clearFilter()
 
     // Return to overview
     if (map.current) {
@@ -260,14 +162,14 @@ export default function ICEPage() {
         duration: 1500
       })
     }
-  }, [clearFilter])
+  }, [])
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-black text-white">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p>Loading timeline...</p>
+          <p>Loading videos...</p>
         </div>
       </div>
     )
@@ -280,38 +182,13 @@ export default function ICEPage() {
 
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/90 to-transparent p-6 z-10">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2">
-              {timeline?.title || 'ICE & Minnesota'}
-            </h1>
-            <p className="text-gray-300 text-lg max-w-3xl">
-              {timeline?.subtitle || 'The shooting of Renée Good and the protests that followed'}
-            </p>
-          </div>
-          <button
-            onClick={() => setShowTimeline(!showTimeline)}
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg backdrop-blur transition-colors"
-          >
-            {showTimeline ? 'Hide Timeline' : 'Show Timeline'}
-          </button>
-        </div>
+        <h1 className="text-4xl font-bold text-white mb-2">
+          ICE & Minnesota
+        </h1>
+        <p className="text-gray-300 text-lg max-w-3xl">
+          The shooting of Renée Good and the protests that followed
+        </p>
       </div>
-
-      {/* Timeline Sidebar */}
-      {showTimeline && timeline && (
-        <div className="absolute left-0 top-0 bottom-0 w-[500px] bg-black/80 backdrop-blur-md z-20 border-r border-white/10">
-          <div className="h-full flex flex-col">
-            <div className="flex-1 overflow-hidden">
-              <Timeline
-                events={timeline.events}
-                onEventClick={handleEventClick}
-                selectedEventId={selectedEvent?.id}
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Video Player */}
       {currentVideo && (
@@ -342,25 +219,6 @@ export default function ICEPage() {
               </p>
               {currentVideo.description && (
                 <p className="text-gray-300 text-sm">{currentVideo.description}</p>
-              )}
-
-              {/* Multiple videos navigation */}
-              {selectedEvent && selectedEvent.videoIds && selectedEvent.videoIds.length > 1 && (
-                <div className="mt-4 flex gap-2">
-                  {selectedEvent.videoIds.map((videoId, idx) => (
-                    <button
-                      key={videoId}
-                      onClick={() => handleVideoChange(videoId)}
-                      className={`px-3 py-1 rounded text-sm transition-colors ${
-                        currentVideo.id === videoId
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                      }`}
-                    >
-                      Video {idx + 1}
-                    </button>
-                  ))}
-                </div>
               )}
             </div>
           </div>

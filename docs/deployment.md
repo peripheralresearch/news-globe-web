@@ -2,7 +2,7 @@
 
 ## Overview
 
-Event Horizon uses **Vercel + GitHub Actions** for automated deployment with the following benefits:
+Peripheral uses **Vercel + GitHub Actions** for automated deployment with the following benefits:
 
 - ✅ **Zero-cost hosting** (Vercel Hobby tier)
 - ✅ **Preview URLs** for every PR

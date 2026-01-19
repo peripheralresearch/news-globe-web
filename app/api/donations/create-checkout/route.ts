@@ -9,8 +9,8 @@ const MAX_AMOUNT = 1000000 // $10,000 maximum donation (in cents)
 const MIN_AMOUNT = 100 // $1 minimum donation (in cents)
 const ALLOWED_ORIGINS = [
   'http://localhost:3000',
-  'https://geopoliticalmirror.com',
-  'https://www.geopoliticalmirror.com'
+  'https://peripheral.com',
+  'https://www.peripheral.com'
 ]
 
 export async function POST(request: Request) {
@@ -80,8 +80,8 @@ export async function POST(request: Request) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: 'Donation to Event Horizon',
-              description: 'Support Event Horizon with a donation'
+              name: 'Donation to Peripheral',
+              description: 'Support Peripheral with a donation'
             },
             unit_amount: amount
           },

@@ -1,6 +1,6 @@
 # Contributing Guide
 
-Thank you for your interest in contributing to Event Horizon!
+Thank you for your interest in contributing to Peripheral!
 
 ## How to Contribute
 1. Fork the repo and create a feature branch.

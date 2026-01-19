@@ -1,6 +1,6 @@
 # Documentation
 
-Welcome to the Event Horizon project documentation. This directory contains all project documentation organized by purpose and audience.
+Welcome to the Peripheral project documentation. This directory contains all project documentation organized by purpose and audience.
 
 ## Getting Started
 

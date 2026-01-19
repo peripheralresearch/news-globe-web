@@ -1,7 +1,7 @@
-# Gitleaks configuration for Event Horizon
+# Gitleaks configuration for Peripheral
 # Strict allowlist for public Stripe payment links only
 
-title = "Event Horizon Secret Scanning"
+title = "Peripheral Secret Scanning"
 
 [extend]
 # Use default rules

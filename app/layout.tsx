@@ -5,7 +5,7 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Event Horizon',
+  title: 'Peripheral',
   description: 'Global message visualization on an interactive 3D globe',
 }
 

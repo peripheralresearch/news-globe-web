@@ -451,9 +451,21 @@ export default function Home() {
         .setLngLat(location.coordinates)
         .addTo(map.current)
 
-      // Handle click on marker
-      el.addEventListener('click', () => {
+      // Pass click handler to the marker component
+      el.addEventListener('click', (e) => {
         if (!map.current || !globeDataRef.current) return
+
+        // Stop idle rotation
+        if (isRotatingRef.current) {
+          isRotatingRef.current = false
+          if (rotationFrameRef.current) {
+            cancelAnimationFrame(rotationFrameRef.current)
+            rotationFrameRef.current = null
+          }
+        }
+
+        // Reset interaction timer
+        lastInteractionRef.current = Date.now()
 
         setSelectedLocation(location)
         const isCountry = isCountryLocation(location)
@@ -1043,23 +1055,23 @@ function MapMarker({ location, animationDelay }: { location: LocationAggregate; 
   const [ripples, setRipples] = useState<number[]>([])
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    e.stopPropagation()
+    // Don't stop propagation so click can reach parent
     setIsPressed(true)
   }
 
   const handleMouseUp = (e: React.MouseEvent) => {
-    e.stopPropagation()
+    // Don't stop propagation so click can reach parent
     setIsPressed(false)
     createRipple()
   }
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    e.stopPropagation()
+    // Don't stop propagation so click can reach parent
     setIsPressed(true)
   }
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    e.stopPropagation()
+    // Don't stop propagation so click can reach parent
     setIsPressed(false)
     createRipple()
   }

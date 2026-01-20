@@ -147,6 +147,95 @@ export default function Home() {
   const glimmerFrameRef = useRef<number | null>(null)
   const glimmerOffsetRef = useRef(0)
 
+  // Ring animation ref
+  const ringFrameRef = useRef<number | null>(null)
+  const ringRadiusRef = useRef(0)
+  const ringAnimatingRef = useRef(false)
+
+  // Generate circle coordinates on a sphere given center point and angular radius (in degrees)
+  const getCircleCoordinates = useCallback((centerLng: number, centerLat: number, radiusDeg: number) => {
+    const points: [number, number][] = []
+    const numPoints = 90 // Smoothness of circle
+
+    // Convert to radians
+    const centerLatRad = (centerLat * Math.PI) / 180
+    const centerLngRad = (centerLng * Math.PI) / 180
+    const radiusRad = (radiusDeg * Math.PI) / 180
+
+    for (let i = 0; i <= numPoints; i++) {
+      const bearing = (i / numPoints) * 2 * Math.PI // 0 to 2π
+
+      // Spherical geometry: destination point given start, bearing, and angular distance
+      const lat2 = Math.asin(
+        Math.sin(centerLatRad) * Math.cos(radiusRad) +
+        Math.cos(centerLatRad) * Math.sin(radiusRad) * Math.cos(bearing)
+      )
+      const lng2 = centerLngRad + Math.atan2(
+        Math.sin(bearing) * Math.sin(radiusRad) * Math.cos(centerLatRad),
+        Math.cos(radiusRad) - Math.sin(centerLatRad) * Math.sin(lat2)
+      )
+
+      // Convert back to degrees
+      points.push([(lng2 * 180) / Math.PI, (lat2 * 180) / Math.PI])
+    }
+
+    return points
+  }, [])
+
+  // Trigger a ripple ring animation expanding from a point
+  const triggerRingAnimation = useCallback((centerLng: number, centerLat: number) => {
+    if (!map.current || ringAnimatingRef.current) return
+
+    ringAnimatingRef.current = true
+    ringRadiusRef.current = 0
+
+    const animateRing = () => {
+      if (!map.current) {
+        ringAnimatingRef.current = false
+        return
+      }
+
+      // Expand radius outward
+      ringRadiusRef.current += 1.5 // Speed of expansion (degrees per frame)
+
+      // Update the ring position
+      const source = map.current.getSource('equator-ring') as mapboxgl.GeoJSONSource
+      if (source) {
+        const coordinates = getCircleCoordinates(centerLng, centerLat, ringRadiusRef.current)
+        source.setData({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates,
+          },
+          properties: {},
+        })
+      }
+
+      // Animation complete when ring reaches other side of globe (180°)
+      if (ringRadiusRef.current >= 180) {
+        // Hide the ring by making it tiny at origin
+        if (source) {
+          source.setData({
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: [[0, 0], [0, 0]],
+            },
+            properties: {},
+          })
+        }
+        ringAnimatingRef.current = false
+        ringFrameRef.current = null
+        return
+      }
+
+      ringFrameRef.current = requestAnimationFrame(animateRing)
+    }
+
+    ringFrameRef.current = requestAnimationFrame(animateRing)
+  }, [getCircleCoordinates])
+
   const [globeData, setGlobeData] = useState<GlobeData | null>(null)
   const globeDataRef = useRef<GlobeData | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<LocationAggregate | null>(null)
@@ -477,6 +566,9 @@ export default function Home() {
           pitch: isCountry ? 45 : 0,
           duration: 1500,
         })
+
+        // Trigger ripple ring animation from the clicked dot
+        triggerRingAnimation(location.coordinates[0], location.coordinates[1])
       })
 
       markersRef.current.push(marker)
@@ -485,7 +577,7 @@ export default function Home() {
     return () => {
       markersRef.current.forEach(marker => marker.remove())
     }
-  }, [globeData, isCountryLocation])
+  }, [globeData, isCountryLocation, triggerRingAnimation])
 
   // Entrance animation with smooth deceleration (ease-out)
   const animateEntrance = useCallback(() => {
@@ -587,6 +679,44 @@ export default function Home() {
               'high-color': '#1a1a1a',
               'space-color': '#000000',
             'star-intensity': 0.4,
+          })
+
+          // Add ripple ring source (starts hidden, animates on dot click)
+          map.current.addSource('equator-ring', {
+            type: 'geojson',
+            data: {
+              type: 'Feature',
+              geometry: {
+                type: 'LineString',
+                coordinates: [[0, 0], [0, 0]], // Hidden initially
+              },
+              properties: {},
+            },
+          })
+
+          // Outer glow layer for the ring
+          map.current.addLayer({
+            id: 'equator-ring-glow',
+            type: 'line',
+            source: 'equator-ring',
+            paint: {
+              'line-color': '#ffffff',
+              'line-width': 8,
+              'line-opacity': 0.15,
+              'line-blur': 6,
+            },
+          })
+
+          // Main ring line
+          map.current.addLayer({
+            id: 'equator-ring-line',
+            type: 'line',
+            source: 'equator-ring',
+            paint: {
+              'line-color': '#ffffff',
+              'line-width': 1.5,
+              'line-opacity': 0.6,
+            },
           })
 
           // Add stories source
@@ -709,6 +839,7 @@ export default function Home() {
             glimmerFrameRef.current = requestAnimationFrame(animateGlimmer)
           }
           glimmerFrameRef.current = requestAnimationFrame(animateGlimmer)
+
         })
 
 
@@ -757,6 +888,9 @@ export default function Home() {
       }
       if (glimmerFrameRef.current) {
         cancelAnimationFrame(glimmerFrameRef.current)
+      }
+      if (ringFrameRef.current) {
+        cancelAnimationFrame(ringFrameRef.current)
       }
       if (brandingTimeoutRef.current) {
         clearTimeout(brandingTimeoutRef.current)

@@ -6,6 +6,31 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { createRoot } from 'react-dom/client'
 import Image from 'next/image'
 
+// Global styles for pulsing animation
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style')
+  style.textContent = `
+    @keyframes pulse-glow {
+      0%, 100% {
+        box-shadow: 0 0 12px rgba(255, 255, 255, 0.6),
+                    0 0 20px rgba(255, 255, 255, 0.3),
+                    0 0 30px rgba(255, 255, 255, 0.1);
+        opacity: 0.9;
+      }
+      50% {
+        box-shadow: 0 0 18px rgba(255, 255, 255, 0.8),
+                    0 0 30px rgba(255, 255, 255, 0.5),
+                    0 0 45px rgba(255, 255, 255, 0.2);
+        opacity: 1;
+      }
+    }
+  `
+  if (!document.getElementById('globe-pulse-animation')) {
+    style.id = 'globe-pulse-animation'
+    document.head.appendChild(style)
+  }
+}
+
 interface NewsStory {
   id: string
   post_id: number
@@ -181,7 +206,7 @@ export default function GlobePage() {
     markersRef.current = []
 
     // Create markers for each news location
-    newsLocations.forEach((location) => {
+    newsLocations.forEach((location, index) => {
       if (!map.current) return
 
       // Create a custom marker element
@@ -190,7 +215,9 @@ export default function GlobePage() {
 
       // Create a React root for the marker
       const root = createRoot(el)
-      root.render(<MapMarker location={location} />)
+      // Pass a random delay for staggered pulsing animation
+      const animationDelay = Math.random() * 3 // 0-3 seconds random delay
+      root.render(<MapMarker location={location} animationDelay={animationDelay} />)
 
       // Add marker to map
       const marker = new mapboxgl.Marker({
@@ -255,7 +282,7 @@ export default function GlobePage() {
   )
 }
 
-function MapMarker({ location }: { location: NewsLocation }) {
+function MapMarker({ location, animationDelay }: { location: NewsLocation; animationDelay: number }) {
   // Get the first story with media, or just the first story
   const primaryStory = location.stories.find(s => s.media_url) || location.stories[0]
 
@@ -265,8 +292,14 @@ function MapMarker({ location }: { location: NewsLocation }) {
 
   return (
     <div className="group relative flex items-center">
-      {/* The Dot */}
-      <div className="relative z-10 w-3 h-3 bg-yellow-400 rounded-full shadow-[0_0_10px_rgba(250,204,21,0.8)] transition-transform duration-300 ease-out group-hover:scale-[2.5]" />
+      {/* The Dot - White with subtle glow and pulsing animation */}
+      <div
+        className="relative z-10 w-3 h-3 bg-white rounded-full shadow-[0_0_12px_rgba(255,255,255,0.6)] transition-transform duration-300 ease-out group-hover:scale-[2.5]"
+        style={{
+          animation: `pulse-glow 2s ease-in-out infinite`,
+          animationDelay: `${animationDelay}s`
+        }}
+      />
 
       {/* Container for Line and Card - anchored to the dot */}
       <div className="absolute left-1.5 bottom-1.5 flex items-end pointer-events-none">
@@ -281,7 +314,7 @@ function MapMarker({ location }: { location: NewsLocation }) {
           <path
             d="M 0,0 L 50,-50 L 250,-50"
             fill="none"
-            stroke="#fbbf24"
+            stroke="#ffffff"
             strokeWidth="2"
             className="opacity-0 transition-all duration-500 ease-out group-hover:opacity-100"
             style={{
@@ -330,7 +363,7 @@ function MapMarker({ location }: { location: NewsLocation }) {
                 {displaySummary.substring(0, 150)}
               </p>
               {location.story_count > 1 && (
-                <p className="text-[9px] text-yellow-400 mt-1">
+                <p className="text-[9px] text-white/80 mt-1">
                   +{location.story_count - 1} more {location.story_count === 2 ? 'story' : 'stories'}
                 </p>
               )}

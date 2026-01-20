@@ -1228,7 +1228,7 @@ function MapMarker({ location, animationDelay }: { location: LocationAggregate; 
   }
 
   // Size based on story count (reduced by 50%)
-  const baseSize = Math.min(6 + location.storyCount * 0.25, 10)
+  const baseSize = Math.min(6 + location.storyCount * 0.25, 10) * 0.85
 
   // Get primary story for the card
   const primaryStory = location.stories.find(s => s.mediaUrl) || location.stories[0]

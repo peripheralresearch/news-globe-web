@@ -38,6 +38,58 @@ export default function GlobePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [mapError, setMapError] = useState<string | null>(null)
   const [newsLocations, setNewsLocations] = useState<NewsLocation[]>([])
+  const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('satellite')
+
+  // Toggle map style
+  const toggleMapStyle = () => {
+    if (!map.current) return
+
+    const newStyle = mapStyle === 'street' ? 'satellite' : 'street'
+    const styleUrl = newStyle === 'street'
+      ? 'mapbox://styles/mapbox/dark-v11'
+      : 'mapbox://styles/mapbox/satellite-streets-v12'
+
+    setMapStyle(newStyle)
+
+    // Preserve current camera position
+    const currentCenter = map.current.getCenter()
+    const currentZoom = map.current.getZoom()
+    const currentBearing = map.current.getBearing()
+    const currentPitch = map.current.getPitch()
+
+    // Change the map style
+    map.current.setStyle(styleUrl)
+
+    // Restore fog and markers after style loads
+    map.current.once('style.load', () => {
+      map.current?.setFog({
+        'horizon-blend': 0.1,
+        color: '#000000',
+        'high-color': '#000000',
+        'space-color': '#000000',
+        'star-intensity': 0.5,
+      })
+
+      // Restore camera position
+      map.current?.jumpTo({
+        center: currentCenter,
+        zoom: currentZoom,
+        bearing: currentBearing,
+        pitch: currentPitch,
+      })
+
+      // Re-add markers after style change
+      if (newsLocations.length > 0 && map.current) {
+        markersRef.current.forEach(marker => {
+          if (map.current) {
+            marker.addTo(map.current)
+          }
+        })
+      }
+    })
+
+    console.log('Map style changed to:', newStyle)
+  }
 
   // Fetch news locations from API
   useEffect(() => {
@@ -160,6 +212,33 @@ export default function GlobePage() {
         ref={mapContainer}
         className="absolute inset-0 w-full h-full"
       />
+
+      {/* Map Style Toggle Button */}
+      {!isLoading && !mapError && (
+        <div className="absolute top-4 right-4 z-10">
+          <button
+            onClick={toggleMapStyle}
+            className="px-4 py-2.5 bg-black/80 backdrop-blur border border-white/20 rounded-lg text-white text-sm hover:bg-white/10 hover:border-white/40 transition-all flex items-center gap-2"
+            title={`Switch to ${mapStyle === 'street' ? 'satellite' : 'street'} view`}
+          >
+            {mapStyle === 'street' ? (
+              <>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Satellite</span>
+              </>
+            ) : (
+              <>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+                <span>Street</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black z-50">

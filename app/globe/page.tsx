@@ -6,7 +6,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { createRoot } from 'react-dom/client'
 import Image from 'next/image'
 
-// Global styles for pulsing animation - matching landing page glow effect
+// Global styles for pulsing animation and ripple effect - matching landing page glow effect
 if (typeof document !== 'undefined') {
   const style = document.createElement('style')
   style.textContent = `
@@ -21,6 +21,33 @@ if (typeof document !== 'undefined') {
                     0 0 28px rgba(255, 255, 255, 0.15),
                     0 0 42px rgba(255, 255, 255, 0.08);
       }
+    }
+
+    @keyframes ripple-expand {
+      0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0.9;
+      }
+      40% {
+        opacity: 0.5;
+      }
+      100% {
+        transform: translate(-50%, -50%) scale(4);
+        opacity: 0;
+      }
+    }
+
+    .ripple-effect {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      pointer-events: none;
+      animation: ripple-expand 0.6s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
     }
   `
   if (!document.getElementById('globe-pulse-animation')) {
@@ -281,6 +308,11 @@ export default function GlobePage() {
 }
 
 function MapMarker({ location, animationDelay }: { location: NewsLocation; animationDelay: number }) {
+  const [isPressed, setIsPressed] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
+  const [ripples, setRipples] = useState<number[]>([])
+  const dotRef = useRef<HTMLDivElement>(null)
+
   // Get the first story with media, or just the first story
   const primaryStory = location.stories.find(s => s.media_url) || location.stories[0]
 
@@ -288,16 +320,76 @@ function MapMarker({ location, animationDelay }: { location: NewsLocation; anima
   const displayTitle = primaryStory?.title || location.entity_name
   const displaySummary = primaryStory?.summary || `${location.story_count} stories in this location`
 
+  // Handle mouse down - button press effect
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsPressed(true)
+  }
+
+  // Handle mouse up - release effect with ripple
+  const handleMouseUp = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsPressed(false)
+    createRipple()
+  }
+
+  // Handle touch events for mobile
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation()
+    setIsPressed(true)
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.stopPropagation()
+    setIsPressed(false)
+    createRipple()
+  }
+
+  // Create ripple animation
+  const createRipple = () => {
+    const rippleId = Date.now()
+    setRipples(prev => [...prev, rippleId])
+
+    // Remove ripple after animation completes
+    setTimeout(() => {
+      setRipples(prev => prev.filter(id => id !== rippleId))
+    }, 600) // Match animation duration (0.6s)
+  }
+
+  // Handle mouse leave - reset pressed state
+  const handleMouseLeave = () => {
+    setIsPressed(false)
+    setIsHovered(false)
+  }
+
+  // Handle mouse enter
+  const handleMouseEnter = () => {
+    setIsHovered(true)
+  }
+
   return (
     <div className="group relative flex items-center">
       {/* The Dot - White with subtle pulsing glow matching landing page */}
       <div
-        className="relative z-10 w-3 h-3 bg-white rounded-full transition-transform duration-300 ease-out group-hover:scale-[2.5]"
+        ref={dotRef}
+        className="relative z-10 w-3 h-3 bg-white rounded-full transition-all duration-100 ease-out cursor-pointer"
         style={{
           animation: `pulse-glow 2.5s ease-in-out infinite`,
-          animationDelay: `${animationDelay}s`
+          animationDelay: `${animationDelay}s`,
+          transform: isPressed ? 'scale(0.75)' : isHovered ? 'scale(1.15)' : 'scale(1)',
         }}
-      />
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Ripple effects */}
+        {ripples.map(rippleId => (
+          <div key={rippleId} className="ripple-effect" />
+        ))}
+      </div>
 
       {/* Container for Line and Card - anchored to the dot */}
       <div className="absolute left-1.5 bottom-1.5 flex items-end pointer-events-none">

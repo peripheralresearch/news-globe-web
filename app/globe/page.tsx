@@ -311,7 +311,9 @@ function MapMarker({ location, animationDelay }: { location: NewsLocation; anima
   const [isPressed, setIsPressed] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [ripples, setRipples] = useState<number[]>([])
+  const [cardOffset, setCardOffset] = useState({ x: 20, y: -50 })
   const dotRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // Get the first story with media, or just the first story
   const primaryStory = location.stories.find(s => s.media_url) || location.stories[0]
@@ -362,13 +364,28 @@ function MapMarker({ location, animationDelay }: { location: NewsLocation; anima
     setIsHovered(false)
   }
 
+  // Calculate card position relative to dot
+  const calculateCardOffset = () => {
+    if (!dotRef.current || !containerRef.current) return
+
+    const dotRect = dotRef.current.getBoundingClientRect()
+    const containerRect = containerRef.current.getBoundingClientRect()
+
+    // Position card 20px to the right and centered vertically
+    const x = 20
+    const y = -50 // Center the card vertically relative to the dot
+
+    setCardOffset({ x, y })
+  }
+
   // Handle mouse enter
   const handleMouseEnter = () => {
+    calculateCardOffset()
     setIsHovered(true)
   }
 
   return (
-    <div className="group relative flex items-center">
+    <div ref={containerRef} className="group relative flex items-center">
       {/* The Dot - White with subtle pulsing glow matching landing page */}
       <div
         ref={dotRef}
@@ -391,18 +408,18 @@ function MapMarker({ location, animationDelay }: { location: NewsLocation; anima
         ))}
       </div>
 
-      {/* Container for Line and Card - anchored to the dot */}
-      <div className="absolute left-1.5 bottom-1.5 flex items-end pointer-events-none">
+      {/* Container for Line and Card - positioned relative to dot */}
+      <div className="absolute left-1.5 top-1.5 flex items-end pointer-events-none">
 
         {/* The Stem Line (SVG) */}
         <svg
-          width="200"
-          height="100"
+          width="350"
+          height="150"
           className="overflow-visible pointer-events-none"
           style={{ transform: 'translate(0, 0)' }}
         >
           <path
-            d="M 0,0 L 50,-50 L 250,-50"
+            d={`M 0,0 L ${cardOffset.x},${cardOffset.y} L ${cardOffset.x + 200},${cardOffset.y}`}
             fill="none"
             stroke="#ffffff"
             strokeWidth="2"
@@ -423,8 +440,13 @@ function MapMarker({ location, animationDelay }: { location: NewsLocation; anima
 
         {/* The Card */}
         <div
-          className="absolute left-[250px] bottom-[50px] transform -translate-y-1/2 opacity-0 translate-x-[-10px] transition-all duration-500 delay-300 ease-out group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto"
-          style={{ width: '300px' }}
+          className="absolute opacity-0 transition-all duration-500 delay-300 ease-out group-hover:opacity-100 group-hover:pointer-events-auto"
+          style={{
+            width: '300px',
+            left: `${cardOffset.x + 200}px`,
+            top: `${cardOffset.y}px`,
+            transform: isHovered ? 'translate(0, -50%)' : 'translate(-20px, -50%)'
+          }}
         >
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 text-white shadow-2xl flex items-start gap-3">
             {/* Thumbnail */}

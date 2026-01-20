@@ -6,22 +6,20 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { createRoot } from 'react-dom/client'
 import Image from 'next/image'
 
-// Global styles for pulsing animation
+// Global styles for pulsing animation - matching landing page glow effect
 if (typeof document !== 'undefined') {
   const style = document.createElement('style')
   style.textContent = `
     @keyframes pulse-glow {
       0%, 100% {
-        box-shadow: 0 0 12px rgba(255, 255, 255, 0.6),
-                    0 0 20px rgba(255, 255, 255, 0.3),
-                    0 0 30px rgba(255, 255, 255, 0.1);
-        opacity: 0.9;
+        box-shadow: 0 0 8px rgba(255, 255, 255, 0.15),
+                    0 0 16px rgba(255, 255, 255, 0.08),
+                    0 0 24px rgba(255, 255, 255, 0.04);
       }
       50% {
-        box-shadow: 0 0 18px rgba(255, 255, 255, 0.8),
-                    0 0 30px rgba(255, 255, 255, 0.5),
-                    0 0 45px rgba(255, 255, 255, 0.2);
-        opacity: 1;
+        box-shadow: 0 0 14px rgba(255, 255, 255, 0.25),
+                    0 0 28px rgba(255, 255, 255, 0.15),
+                    0 0 42px rgba(255, 255, 255, 0.08);
       }
     }
   `
@@ -63,7 +61,7 @@ export default function GlobePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [mapError, setMapError] = useState<string | null>(null)
   const [newsLocations, setNewsLocations] = useState<NewsLocation[]>([])
-  const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('satellite')
+  const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street')
 
   // Toggle map style
   const toggleMapStyle = () => {
@@ -153,7 +151,7 @@ export default function GlobePage() {
 
         map.current = new mapboxgl.Map({
           container: mapContainer.current!,
-          style: 'mapbox://styles/mapbox/satellite-streets-v12', // Satellite base
+          style: 'mapbox://styles/mapbox/dark-v11', // Dark street view
           center: [20.0, 30.0], // Center on Europe/Africa/Middle East
           zoom: 2.5,
           projection: 'globe' as unknown as mapboxgl.Projection,
@@ -292,11 +290,11 @@ function MapMarker({ location, animationDelay }: { location: NewsLocation; anima
 
   return (
     <div className="group relative flex items-center">
-      {/* The Dot - White with subtle glow and pulsing animation */}
+      {/* The Dot - White with subtle pulsing glow matching landing page */}
       <div
-        className="relative z-10 w-3 h-3 bg-white rounded-full shadow-[0_0_12px_rgba(255,255,255,0.6)] transition-transform duration-300 ease-out group-hover:scale-[2.5]"
+        className="relative z-10 w-3 h-3 bg-white rounded-full transition-transform duration-300 ease-out group-hover:scale-[2.5]"
         style={{
-          animation: `pulse-glow 2s ease-in-out infinite`,
+          animation: `pulse-glow 2.5s ease-in-out infinite`,
           animationDelay: `${animationDelay}s`
         }}
       />

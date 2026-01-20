@@ -300,6 +300,26 @@ export default function Home() {
         })
       }
 
+      // Re-add base GPU-rendered dots layer
+      if (!map.current.getLayer('stories-dots')) {
+        map.current.addLayer({
+          id: 'stories-dots',
+          type: 'circle',
+          source: 'stories',
+          paint: {
+            'circle-radius': [
+              'interpolate',
+              ['linear'],
+              ['coalesce', ['get', 'storyCount'], 1],
+              1, 1.5,
+              25, 4
+            ],
+            'circle-color': '#ffffff',
+            'circle-opacity': 0.9,
+          },
+        })
+      }
+
       // Re-add glow layers (check if they already exist first)
       for (let i = 0; i < 3; i++) {
         const layerId = `stories-glow-${i}`
@@ -723,6 +743,24 @@ export default function Home() {
           map.current.addSource('stories', {
             type: 'geojson',
             data: { type: 'FeatureCollection', features: [] },
+          })
+
+          // Base GPU-rendered dots layer for smooth globe tracking
+          map.current.addLayer({
+            id: 'stories-dots',
+            type: 'circle',
+            source: 'stories',
+            paint: {
+              'circle-radius': [
+                'interpolate',
+                ['linear'],
+                ['coalesce', ['get', 'storyCount'], 1],
+                1, 1.5,
+                25, 4
+              ],
+              'circle-color': '#ffffff',
+              'circle-opacity': 0.9,
+            },
           })
 
           // Create multiple glow layers with different phase groups

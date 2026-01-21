@@ -3,8 +3,75 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
+import { createRoot } from 'react-dom/client'
 import type { FeatureCollection, Feature, Point, LineString } from 'geojson'
 
+
+// Global styles for ripple effect on click and pulse animation
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style')
+  style.textContent = `
+    @keyframes pulse-glow {
+      0%, 100% {
+        box-shadow: 0 0 8px rgba(255, 255, 255, 0.15),
+                    0 0 16px rgba(255, 255, 255, 0.08),
+                    0 0 24px rgba(255, 255, 255, 0.04);
+      }
+      50% {
+        box-shadow: 0 0 14px rgba(255, 255, 255, 0.25),
+                    0 0 28px rgba(255, 255, 255, 0.15),
+                    0 0 42px rgba(255, 255, 255, 0.08);
+      }
+    }
+
+    @keyframes ripple-expand {
+      0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0.9;
+      }
+      40% {
+        opacity: 0.5;
+      }
+      100% {
+        transform: translate(-50%, -50%) scale(4);
+        opacity: 0;
+      }
+    }
+
+    @keyframes slideInFade {
+      0% {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .hover-card-enter {
+      animation: slideInFade 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    .ripple-effect {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      pointer-events: none;
+      animation: ripple-expand 0.6s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+      z-index: 1000;
+    }
+  `
+  if (!document.getElementById('globey-ripple-animation')) {
+    style.id = 'globey-ripple-animation'
+    document.head.appendChild(style)
+  }
+}
 interface NewsItem {
     id: string
     title: string | null
@@ -60,6 +127,7 @@ export default function Home() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
   const storiesRef = useRef<FeatureCollection<Point>>({ type: 'FeatureCollection', features: [] })
+  const markersRef = useRef<mapboxgl.Marker[]>([])
 
   // Idle rotation refs
   const lastInteractionRef = useRef(Date.now())
@@ -79,18 +147,117 @@ export default function Home() {
   const glimmerFrameRef = useRef<number | null>(null)
   const glimmerOffsetRef = useRef(0)
 
+  // Ring animation ref
+  const ringFrameRef = useRef<number | null>(null)
+  const ringRadiusRef = useRef(0)
+  const ringAnimatingRef = useRef(false)
+
+  // Generate circle coordinates on a sphere given center point and angular radius (in degrees)
+  const getCircleCoordinates = useCallback((centerLng: number, centerLat: number, radiusDeg: number) => {
+    const points: [number, number][] = []
+    const numPoints = 90 // Smoothness of circle
+
+    // Convert to radians
+    const centerLatRad = (centerLat * Math.PI) / 180
+    const centerLngRad = (centerLng * Math.PI) / 180
+    const radiusRad = (radiusDeg * Math.PI) / 180
+
+    for (let i = 0; i <= numPoints; i++) {
+      const bearing = (i / numPoints) * 2 * Math.PI // 0 to 2π
+
+      // Spherical geometry: destination point given start, bearing, and angular distance
+      const lat2 = Math.asin(
+        Math.sin(centerLatRad) * Math.cos(radiusRad) +
+        Math.cos(centerLatRad) * Math.sin(radiusRad) * Math.cos(bearing)
+      )
+      const lng2 = centerLngRad + Math.atan2(
+        Math.sin(bearing) * Math.sin(radiusRad) * Math.cos(centerLatRad),
+        Math.cos(radiusRad) - Math.sin(centerLatRad) * Math.sin(lat2)
+      )
+
+      // Convert back to degrees
+      points.push([(lng2 * 180) / Math.PI, (lat2 * 180) / Math.PI])
+    }
+
+    return points
+  }, [])
+
+  // Trigger a ripple ring animation expanding from a point
+  const triggerRingAnimation = useCallback((centerLng: number, centerLat: number) => {
+    if (!map.current || ringAnimatingRef.current) return
+
+    ringAnimatingRef.current = true
+    ringRadiusRef.current = 0
+
+    const animateRing = () => {
+      if (!map.current) {
+        ringAnimatingRef.current = false
+        return
+      }
+
+      // Expand radius outward
+      ringRadiusRef.current += 1.5 // Speed of expansion (degrees per frame)
+
+      // Update the ring position
+      const source = map.current.getSource('equator-ring') as mapboxgl.GeoJSONSource
+      if (source) {
+        const coordinates = getCircleCoordinates(centerLng, centerLat, ringRadiusRef.current)
+        source.setData({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates,
+          },
+          properties: {},
+        })
+      }
+
+      // Animation complete when ring reaches other side of globe (180°)
+      if (ringRadiusRef.current >= 180) {
+        // Hide the ring by making it tiny at origin
+        if (source) {
+          source.setData({
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: [[0, 0], [0, 0]],
+            },
+            properties: {},
+          })
+        }
+        ringAnimatingRef.current = false
+        ringFrameRef.current = null
+        return
+      }
+
+      ringFrameRef.current = requestAnimationFrame(animateRing)
+    }
+
+    ringFrameRef.current = requestAnimationFrame(animateRing)
+  }, [getCircleCoordinates])
+
   const [globeData, setGlobeData] = useState<GlobeData | null>(null)
   const globeDataRef = useRef<GlobeData | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<LocationAggregate | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [mapError, setMapError] = useState<string | null>(null)
-  const [expandedStories, setExpandedStories] = useState<Set<string>>(() => new Set())
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showSearchResults, setShowSearchResults] = useState(false)
   const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street')
-  const [isTrendingCollapsed, setIsTrendingCollapsed] = useState(false)
 
   const brandingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Helper function to determine if location is a country (not a city)
+  const isCountryLocation = useCallback((location: LocationAggregate) => {
+    const name = location.name.toLowerCase()
+    const subtype = location.locationSubtype?.toLowerCase() || ''
+
+    // Check if it's explicitly not a city
+    const isCity = subtype.includes('city') ||
+                   subtype.includes('town') ||
+                   subtype.includes('region') ||
+                   name.includes(',') // Cities usually have format "City, Country"
+
+    return !isCity
+  }, [])
 
   // Toggle map style handler
   const toggleMapStyle = useCallback(() => {
@@ -133,26 +300,7 @@ export default function Home() {
         })
       }
 
-      // Re-add glow layers (check if they already exist first)
-      for (let i = 0; i < 3; i++) {
-        const layerId = `stories-glow-${i}`
-        if (!map.current.getLayer(layerId)) {
-          map.current.addLayer({
-            id: layerId,
-            type: 'circle',
-            source: 'stories',
-            filter: ['==', ['%', ['to-number', ['get', 'id']], 3], i],
-            paint: {
-              'circle-radius': 4,
-              'circle-color': '#ffffff',
-              'circle-opacity': 0.3,
-              'circle-blur': 1,
-            },
-          })
-        }
-      }
-
-      // Re-add core dots layer (check if it already exists first)
+      // Re-add base GPU-rendered dots layer
       if (!map.current.getLayer('stories-dots')) {
         map.current.addLayer({
           id: 'stories-dots',
@@ -170,6 +318,25 @@ export default function Home() {
             'circle-opacity': 0.9,
           },
         })
+      }
+
+      // Re-add glow layers (check if they already exist first)
+      for (let i = 0; i < 3; i++) {
+        const layerId = `stories-glow-${i}`
+        if (!map.current.getLayer(layerId)) {
+          map.current.addLayer({
+            id: layerId,
+            type: 'circle',
+            source: 'stories',
+            filter: ['==', ['%', ['to-number', ['get', 'id']], 3], i],
+            paint: {
+              'circle-radius': 4,
+              'circle-color': '#ffffff',
+              'circle-opacity': 0.3,
+              'circle-blur': 1,
+            },
+          })
+        }
       }
 
       // Re-add country border highlight layers (check if they already exist first)
@@ -324,17 +491,6 @@ export default function Home() {
     }
   }, [fetchGlobePage])
 
-  const toggleStoryExpansion = useCallback((storyId: string) => {
-    setExpandedStories(prev => {
-      const next = new Set(prev)
-      if (next.has(storyId)) {
-        next.delete(storyId)
-      } else {
-        next.add(storyId)
-      }
-      return next
-    })
-  }, [])
 
   // Update map with news item points
   const updateMapData = useCallback((data: GlobeData) => {
@@ -348,6 +504,7 @@ export default function Home() {
     // Create news item features
     const newsItemFeatures: Feature<Point>[] = data.newsItems.map((item) => ({
       type: 'Feature',
+      id: item.id, // Feature-level ID required for feature-state
       geometry: {
         type: 'Point',
         coordinates: item.coordinates,
@@ -375,6 +532,72 @@ export default function Home() {
   useEffect(() => {
     globeDataRef.current = globeData
   }, [globeData])
+
+  // Create custom markers for dots
+  useEffect(() => {
+    if (!map.current || !globeData) return
+
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.remove())
+    markersRef.current = []
+
+    // Create markers for each location
+    globeData.locations.forEach((location, index) => {
+      if (!map.current) return
+
+      const el = document.createElement('div')
+      el.className = 'custom-marker-container'
+
+      const root = createRoot(el)
+      const animationDelay = Math.random() * 3
+      root.render(<MapMarker location={location} animationDelay={animationDelay} />)
+
+      const marker = new mapboxgl.Marker({
+        element: el,
+        anchor: 'center',
+        offset: [0, 0] // Keep dots centered on coordinates
+      })
+        .setLngLat(location.coordinates)
+        .addTo(map.current)
+
+      // Pass click handler to the marker component
+      el.addEventListener('click', (e) => {
+        if (!map.current || !globeDataRef.current) return
+
+        // Stop idle rotation
+        if (isRotatingRef.current) {
+          isRotatingRef.current = false
+          if (rotationFrameRef.current) {
+            cancelAnimationFrame(rotationFrameRef.current)
+            rotationFrameRef.current = null
+          }
+        }
+
+        // Reset interaction timer
+        lastInteractionRef.current = Date.now()
+
+        setSelectedLocation(location)
+        const isCountry = isCountryLocation(location)
+        const zoom = location.defaultZoom || 5
+
+        map.current.flyTo({
+          center: location.coordinates,
+          zoom: zoom,
+          pitch: isCountry ? 45 : 0,
+          duration: 1500,
+        })
+
+        // Trigger ripple ring animation from the clicked dot
+        triggerRingAnimation(location.coordinates[0], location.coordinates[1])
+      })
+
+      markersRef.current.push(marker)
+    })
+
+    return () => {
+      markersRef.current.forEach(marker => marker.remove())
+    }
+  }, [globeData, isCountryLocation, triggerRingAnimation])
 
   // Entrance animation with smooth deceleration (ease-out)
   const animateEntrance = useCallback(() => {
@@ -478,10 +701,66 @@ export default function Home() {
             'star-intensity': 0.4,
           })
 
+          // Add ripple ring source (starts hidden, animates on dot click)
+          map.current.addSource('equator-ring', {
+            type: 'geojson',
+            data: {
+              type: 'Feature',
+              geometry: {
+                type: 'LineString',
+                coordinates: [[0, 0], [0, 0]], // Hidden initially
+              },
+              properties: {},
+            },
+          })
+
+          // Outer glow layer for the ring
+          map.current.addLayer({
+            id: 'equator-ring-glow',
+            type: 'line',
+            source: 'equator-ring',
+            paint: {
+              'line-color': '#ffffff',
+              'line-width': 8,
+              'line-opacity': 0.15,
+              'line-blur': 6,
+            },
+          })
+
+          // Main ring line
+          map.current.addLayer({
+            id: 'equator-ring-line',
+            type: 'line',
+            source: 'equator-ring',
+            paint: {
+              'line-color': '#ffffff',
+              'line-width': 1.5,
+              'line-opacity': 0.6,
+            },
+          })
+
           // Add stories source
           map.current.addSource('stories', {
             type: 'geojson',
             data: { type: 'FeatureCollection', features: [] },
+          })
+
+          // Base GPU-rendered dots layer for smooth globe tracking
+          map.current.addLayer({
+            id: 'stories-dots',
+            type: 'circle',
+            source: 'stories',
+            paint: {
+              'circle-radius': [
+                'interpolate',
+                ['linear'],
+                ['coalesce', ['get', 'storyCount'], 1],
+                1, 1.5,
+                25, 4
+              ],
+              'circle-color': '#ffffff',
+              'circle-opacity': 0.9,
+            },
           })
 
           // Create multiple glow layers with different phase groups
@@ -500,24 +779,6 @@ export default function Home() {
               },
             })
           }
-
-          // Core dots
-          map.current.addLayer({
-            id: 'stories-dots',
-            type: 'circle',
-            source: 'stories',
-            paint: {
-              'circle-radius': [
-                'interpolate',
-                ['linear'],
-                ['coalesce', ['get', 'storyCount'], 1],
-                1, 1.5,
-                25, 4
-              ],
-              'circle-color': '#ffffff',
-              'circle-opacity': 0.9,
-            },
-          })
 
           // Load data
           console.log('Map loaded, fetching globe data...')
@@ -616,65 +877,9 @@ export default function Home() {
             glimmerFrameRef.current = requestAnimationFrame(animateGlimmer)
           }
           glimmerFrameRef.current = requestAnimationFrame(animateGlimmer)
+
         })
 
-        // Click handler
-        map.current.on('click', 'stories-dots', (e) => {
-          if (!e.features || !e.features[0]) return
-
-          const props = e.features[0].properties
-          if (props && props.location && globeDataRef.current) {
-            console.log('🎯 Clicked location:', props.location)
-
-            // Stop entrance animation if still running
-            if (entranceAnimationRef.current) {
-              cancelAnimationFrame(entranceAnimationRef.current)
-              entranceAnimationRef.current = null
-              hasPlayedEntranceRef.current = true
-            }
-
-            // Stop any rotation that might be happening
-            lastInteractionRef.current = Date.now()
-            if (isRotatingRef.current) {
-              console.log('🛑 Stopping rotation for flyTo')
-              isRotatingRef.current = false
-              if (rotationFrameRef.current) {
-                cancelAnimationFrame(rotationFrameRef.current)
-                rotationFrameRef.current = null
-              }
-            }
-
-            // Find the location that this dot represents
-            const location = globeDataRef.current.locations.find(loc => loc.name === props.location)
-            if (location) {
-              console.log('✅ Found location data:', location.name, location.storyCount, 'stories')
-              setSelectedLocation(location)
-
-              // Fly to location with tilt for countries
-              const isCountry = isCountryLocation(location)
-              const zoom = location.defaultZoom || 5
-              console.log('🌍 Location type:', isCountry ? 'COUNTRY' : 'city', '| Pitch:', isCountry ? 45 : 0)
-              console.log('✈️ Flying to:', location.coordinates, 'zoom:', zoom)
-
-              map.current?.flyTo({
-                center: location.coordinates,
-                zoom: zoom,
-                pitch: isCountry ? 45 : 0,
-                duration: 1500,
-              })
-            } else {
-              console.warn('❌ Location not found in globeData:', props.location)
-            }
-          }
-        })
-
-        // Hover cursor
-        map.current.on('mouseenter', 'stories-dots', () => {
-          if (map.current) map.current.getCanvas().style.cursor = 'pointer'
-        })
-        map.current.on('mouseleave', 'stories-dots', () => {
-          if (map.current) map.current.getCanvas().style.cursor = ''
-        })
 
         // Track user interactions to reset idle timer
         // Note: 'move' is excluded because setCenter() during rotation triggers it
@@ -722,6 +927,9 @@ export default function Home() {
       if (glimmerFrameRef.current) {
         cancelAnimationFrame(glimmerFrameRef.current)
       }
+      if (ringFrameRef.current) {
+        cancelAnimationFrame(ringFrameRef.current)
+      }
       if (brandingTimeoutRef.current) {
         clearTimeout(brandingTimeoutRef.current)
       }
@@ -754,20 +962,6 @@ export default function Home() {
       stopRotation()
     }
   }, [stopRotation])
-
-  // Helper function to determine if location is a country (not a city)
-  const isCountryLocation = useCallback((location: LocationAggregate) => {
-    const name = location.name.toLowerCase()
-    const subtype = location.locationSubtype?.toLowerCase() || ''
-
-    // Check if it's explicitly not a city
-    const isCity = subtype.includes('city') ||
-                   subtype.includes('town') ||
-                   subtype.includes('region') ||
-                   name.includes(',') // Cities usually have format "City, Country"
-
-    return !isCity
-  }, [])
 
   // Idle rotation animation
   const animateRotation = useCallback(() => {
@@ -985,6 +1179,7 @@ export default function Home() {
   }, [selectedLocation, isCountryLocation])
 
   return (
+    <>
     <div className="relative w-full h-screen bg-black overflow-hidden">
       {/* Map */}
       <div
@@ -993,19 +1188,10 @@ export default function Home() {
         style={{ minHeight: '100vh', minWidth: '100vw' }}
       />
 
-      {/* Top Right Controls - Map Style Toggle & Stories Link */}
+
+      {/* Top Right Controls - Map Style Toggle */}
       {globeData && !isLoading && !selectedLocation && (
-        <div className="absolute top-4 right-4 z-10 flex gap-2">
-          <a
-            href="/stories"
-            className="px-4 py-2.5 bg-black/80 backdrop-blur border border-white/20 rounded-lg text-white text-sm hover:bg-white/10 hover:border-white/40 transition-all flex items-center gap-2"
-            title="View stories feed"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-            </svg>
-            <span>Stories</span>
-          </a>
+        <div className="absolute top-4 right-4 z-10">
           <button
             onClick={toggleMapStyle}
             className="px-4 py-2.5 bg-black/80 backdrop-blur border border-white/20 rounded-lg text-white text-sm hover:bg-white/10 hover:border-white/40 transition-all flex items-center gap-2"
@@ -1030,394 +1216,135 @@ export default function Home() {
         </div>
       )}
 
-      {/* Search Bar - Top Center */}
-      {globeData && !isLoading && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-96 max-w-[90vw] z-10">
-          <div className="relative">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value)
-                setShowSearchResults(e.target.value.length > 0)
-              }}
-              onFocus={() => setShowSearchResults(searchQuery.length > 0)}
-              onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
-              placeholder="Search location..."
-              className="w-full px-4 py-2.5 bg-black/80 backdrop-blur border border-white/20 rounded-lg text-white placeholder-gray-500 text-sm focus:outline-none focus:border-white/40 transition-colors"
-            />
-            <svg
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
+    </div>
+    </>
+  )
+}
 
-            {/* Search Results Dropdown */}
-            {showSearchResults && searchQuery && (() => {
-              const filteredLocations = globeData.locations.filter(loc =>
-                loc.name.toLowerCase().includes(searchQuery.toLowerCase())
-              ).slice(0, 8)
+function MapMarker({ location, animationDelay }: { location: LocationAggregate; animationDelay: number }) {
+  const [isPressed, setIsPressed] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
+  const [ripples, setRipples] = useState<number[]>([])
 
-              return filteredLocations.length > 0 ? (
-                <div className="absolute top-full mt-2 w-full bg-black/90 backdrop-blur border border-white/20 rounded-lg overflow-hidden">
-                  {filteredLocations.map(loc => (
-                    <button
-                      key={loc.name}
-                      onClick={() => {
-                        setSelectedLocation(loc)
-                        setSearchQuery('')
-                        setShowSearchResults(false)
-                        if (map.current) {
-                          const isCountry = isCountryLocation(loc)
-                          const zoom = loc.defaultZoom || 4
-                          map.current.flyTo({
-                            center: loc.coordinates,
-                            zoom: zoom,
-                            pitch: isCountry ? 45 : 0,
-                            duration: 2000,
-                          })
-                        }
-                      }}
-                      className="w-full px-4 py-2.5 text-left hover:bg-white/10 transition-colors border-b border-white/10 last:border-b-0"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-200">{loc.name}</span>
-                        <span className="text-xs text-gray-500">{loc.storyCount} stories</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="absolute top-full mt-2 w-full bg-black/90 backdrop-blur border border-white/20 rounded-lg px-4 py-3">
-                  <p className="text-sm text-gray-500">No locations found</p>
-                </div>
-              )
-            })()}
-          </div>
-        </div>
-      )}
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Don't stop propagation so click can reach parent
+    setIsPressed(true)
+  }
 
-      {/* Trending Section - Top Left */}
-      {globeData && !isLoading && (() => {
-        // Always show global trending stories (top stories of the day)
-        const locationsToScan = globeData.locations
+  const handleMouseUp = (e: React.MouseEvent) => {
+    // Don't stop propagation so click can reach parent
+    setIsPressed(false)
+    createRipple()
+  }
 
-        // Flatten all stories from all locations
-        const allStories: Array<{
-          story: LocationAggregate['stories'][0]
-          location: LocationAggregate
-        }> = []
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // Don't stop propagation so click can reach parent
+    setIsPressed(true)
+  }
 
-        locationsToScan.forEach(loc => {
-          loc.stories.forEach(story => {
-            allStories.push({ story, location: loc })
-          })
-        })
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    // Don't stop propagation so click can reach parent
+    setIsPressed(false)
+    createRipple()
+  }
 
-        // Group stories by similar content (using first 100 chars of summary as key)
-        const storyGroups = new Map<string, Array<typeof allStories[0]>>()
+  const createRipple = () => {
+    const rippleId = Date.now()
+    setRipples(prev => [...prev, rippleId])
+    setTimeout(() => {
+      setRipples(prev => prev.filter(id => id !== rippleId))
+    }, 600)
+  }
 
-        allStories.forEach(item => {
-          const content = (item.story.summary || item.story.title || '').trim()
-          const key = content.substring(0, 100).toLowerCase()
+  const handleMouseLeave = () => {
+    setIsPressed(false)
+    setIsHovered(false)
+  }
 
-          if (!storyGroups.has(key)) {
-            storyGroups.set(key, [])
-          }
-          storyGroups.get(key)!.push(item)
-        })
+  const handleMouseEnter = () => {
+    setIsHovered(true)
+  }
 
-        // Convert to array and sort by count (most reported stories first)
-        const trendingStories = Array.from(storyGroups.entries())
-          .map(([key, items]) => ({
-            content: (items[0].story.summary || items[0].story.title || 'No content').trim(),
-            count: items.length,
-            locations: Array.from(new Set(items.map(i => i.location.name))),
-            firstItem: items[0],
-          }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 8)
+  // Size based on story count (reduced by 50%)
+  const baseSize = Math.min(6 + location.storyCount * 0.25, 10) * 0.85
 
-        return (
-          <div className="absolute top-4 left-4 w-96 max-w-[90vw] bg-black/80 backdrop-blur rounded-lg text-white overflow-hidden transition-all duration-300">
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2 flex-1">
-                  <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">
-                    TRENDING
-                  </h2>
-                  <div className="flex items-center gap-1">
-                    <span className="text-[10px] text-gray-400 uppercase">LIVE</span>
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                  </div>
-                  {isTrendingCollapsed && (
-                    <span className="text-xs text-gray-500 ml-1">
-                      ({trendingStories.length})
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={() => setIsTrendingCollapsed(!isTrendingCollapsed)}
-                  className="p-1 hover:bg-white/10 rounded transition-colors flex-shrink-0"
-                  title={isTrendingCollapsed ? 'Expand trending' : 'Collapse trending'}
-                  aria-label={isTrendingCollapsed ? 'Expand trending panel' : 'Collapse trending panel'}
-                >
-                  <svg
-                    className={`h-4 w-4 text-gray-400 transition-transform duration-300 ${
-                      isTrendingCollapsed ? 'rotate-90' : 'rotate-0'
-                    }`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
+  // Get primary story for the card
+  const primaryStory = location.stories.find(s => s.mediaUrl) || location.stories[0]
+  const displayTitle = primaryStory?.title || location.name
+  const displaySummary = primaryStory?.summary || `${location.storyCount} stories in this location`
+
+  return (
+    <div className="relative" style={{ zIndex: isHovered ? 1 : 100 }}>
+      <div
+        className="bg-white rounded-full transition-all duration-100 ease-out cursor-pointer"
+        style={{
+          width: `${baseSize}px`,
+          height: `${baseSize}px`,
+          animation: `pulse-glow 2.5s ease-in-out infinite`,
+          animationDelay: `${animationDelay}s`,
+          transform: isPressed ? 'scale(0.75)' : isHovered ? 'scale(1.5)' : 'scale(1)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.8), inset 0 0 2px rgba(255,255,255,0.3)',
+          position: 'relative',
+          zIndex: isHovered ? 200 : 100,
+        }}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {ripples.map(rippleId => (
+          <div key={rippleId} className="ripple-effect" />
+        ))}
+      </div>
+
+      {/* Hover Card with slide-in fade animation */}
+      {isHovered && (
+        <div
+          className="absolute hover-card-enter pointer-events-none"
+          style={{
+            left: `${baseSize + 20}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: '320px',
+            zIndex: 50, // Below other dots (100) but above map
+          }}
+        >
+          <div className="bg-black/95 backdrop-blur-3xl backdrop-saturate-0 border border-white/40 rounded-xl p-3 text-white shadow-2xl flex items-start gap-3">
+            {/* Thumbnail */}
+            {primaryStory?.mediaUrl ? (
+              <div className="relative w-24 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800">
+                <img
+                  src={`/api/proxy-image?url=${encodeURIComponent(primaryStory.mediaUrl)}`}
+                  alt={displayTitle.substring(0, 50)}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none'
+                  }}
+                />
               </div>
-              {!isTrendingCollapsed && (
-                <p className="text-xs text-gray-500 mb-3">
-                  Top stories worldwide
+            ) : (
+              <div className="w-24 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center">
+                <div className="text-gray-500 text-xs">📍</div>
+              </div>
+            )}
+
+            {/* Text Content */}
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-bold text-gray-100 leading-tight mb-1 line-clamp-2">
+                {displayTitle.substring(0, 80)}
+              </h3>
+              <p className="text-[10px] text-gray-300 leading-relaxed line-clamp-3">
+                {displaySummary.substring(0, 150)}
+              </p>
+              {location.storyCount > 1 && (
+                <p className="text-[9px] text-white/80 mt-1">
+                  +{location.storyCount - 1} more {location.storyCount === 2 ? 'story' : 'stories'}
                 </p>
               )}
             </div>
-            <div
-              className={`transition-all duration-300 ease-in-out ${
-                isTrendingCollapsed ? 'max-h-0 opacity-0' : 'max-h-[70vh] opacity-100'
-              }`}
-              style={{
-                overflow: isTrendingCollapsed ? 'hidden' : 'auto',
-              }}
-            >
-              <div className="px-4 pb-4 space-y-3">
-              {trendingStories.map((trending, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    const loc = trending.firstItem.location
-                    console.log('🔥 Trending story clicked:', loc.name, 'at', loc.coordinates, 'zoom:', loc.defaultZoom)
-
-                    // Cancel any entrance animation
-                    if (entranceAnimationRef.current) {
-                      cancelAnimationFrame(entranceAnimationRef.current)
-                      entranceAnimationRef.current = null
-                    }
-
-                    // Stop idle rotation
-                    resetInteraction()
-
-                    setSelectedLocation(loc)
-                    if (map.current) {
-                      const isCountry = isCountryLocation(loc)
-                      const zoom = loc.defaultZoom || 4
-                      console.log('✈️ Flying to trending location:', loc.coordinates, 'zoom:', zoom, 'pitch:', isCountry ? 45 : 0)
-                      map.current.flyTo({
-                        center: loc.coordinates,
-                        zoom: zoom,
-                        pitch: isCountry ? 45 : 0,
-                        duration: 1500,
-                      })
-                    }
-                  }}
-                  className="w-full text-left px-3 py-2.5 rounded bg-white/5 hover:bg-white/10 transition-colors group"
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="text-xs text-gray-500 font-mono mt-0.5 flex-shrink-0">#{idx + 1}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-200 group-hover:text-white line-clamp-2 mb-1">
-                        {trending.content.length > 120
-                          ? `${trending.content.substring(0, 120)}...`
-                          : trending.content}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span className="bg-white/20 px-1.5 py-0.5 rounded">
-                          {trending.count} {trending.count === 1 ? 'report' : 'reports'}
-                        </span>
-                        <span className="truncate">
-                          {trending.locations.slice(0, 2).join(', ')}
-                          {trending.locations.length > 2 && ` +${trending.locations.length - 2}`}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              ))}
-              </div>
-            </div>
           </div>
-        )
-      })()}
-
-      {/* Location Detail Panel */}
-      {selectedLocation && (
-        <div className="absolute top-4 right-4 w-96 max-w-[90vw] bg-black/80 backdrop-blur rounded-lg p-4 text-white max-h-[80vh] overflow-y-auto">
-          <div className="flex justify-between items-start mb-3">
-            <div className="flex items-center gap-2 flex-1">
-              <span className="text-xs text-gray-400 uppercase tracking-wide">
-                {selectedLocation.name}
-              </span>
-              <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">
-                {selectedLocation.storyCount} stories
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={toggleMapStyle}
-                className="p-1.5 hover:bg-white/10 rounded transition-colors"
-                title={`Switch to ${mapStyle === 'street' ? 'satellite' : 'street'} view`}
-              >
-                {mapStyle === 'street' ? (
-                  <svg className="h-4 w-4 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                ) : (
-                  <svg className="h-4 w-4 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                  </svg>
-                )}
-              </button>
-              <button
-                onClick={() => setSelectedLocation(null)}
-                className="text-gray-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-
-          <div className="text-sm text-gray-200 space-y-2">
-            {selectedLocation.stories.slice(0, 20).map((s) => {
-              const summaryText = (s.summary || s.title || 'No content').trim()
-              const isLongSummary = summaryText.length > STORY_SUMMARY_LIMIT
-              const isExpanded = expandedStories.has(s.id)
-              const displaySummary =
-                isLongSummary && !isExpanded
-                  ? `${summaryText.slice(0, STORY_SUMMARY_LIMIT).trimEnd()}…`
-                  : summaryText
-
-              return (
-                <div key={s.id} className="py-2 border-b border-white/10 last:border-b-0">
-                  {/* Content left, media right */}
-                  <div className="flex gap-3">
-                    {/* Left side - text content */}
-                    <div className="flex-1 min-w-0">
-                      {/* Post text content */}
-                      <div className="text-sm text-gray-200 mb-2">{displaySummary}</div>
-                      {isLongSummary && (
-                        <button
-                          type="button"
-                          onClick={() => toggleStoryExpansion(s.id)}
-                          className="text-xs uppercase tracking-wider text-white/60 hover:text-white focus:outline-none"
-                        >
-                          {isExpanded ? 'Read less' : 'Read more'}
-                        </button>
-                      )}
-
-                      {/* Source and link */}
-                      <div className="flex items-center justify-between gap-3 text-[11px] text-gray-400">
-                        <div className="flex items-center gap-1.5">
-                          {/* Source icon (Telegram or RSS) */}
-                          <img
-                            src="/telegram-icon.png"
-                            alt="Source"
-                            className="h-3.5 w-3.5 opacity-60"
-                          />
-                          <span className="uppercase text-[10px] tracking-wider">{s.sourceName || 'Source unknown'}</span>
-                        </div>
-                        {s.sourceUrl ? (
-                          <a
-                            href={s.sourceUrl}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="flex items-center gap-1 text-white/70 hover:text-white"
-                            aria-label={`Open ${s.sourceName || 'source'} story`}
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 24 24"
-                              className="h-4 w-4"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1.75"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M7 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2" />
-                              <polyline points="16 3 21 3 21 8" />
-                              <line x1="15" y1="9" x2="21" y2="3" />
-                            </svg>
-                            <span className="text-[10px]">View</span>
-                          </a>
-                        ) : (
-                          <span className="text-[10px] text-gray-500 italic">No link available</span>
-                        )}
-                      </div>
-
-                      {/* Timestamp */}
-                      <div className="text-[11px] text-gray-500 mt-1">
-                        {new Date(s.created).toLocaleString()}
-                      </div>
-                    </div>
-
-                    {/* Right side - media (image or video thumbnail) */}
-                    {s.mediaUrl && (
-                      <a
-                        href={s.mediaUrl}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        className="flex-shrink-0 block w-40 h-40 rounded overflow-hidden border border-white/20 hover:border-white/40 transition-colors bg-black/30"
-                        title="View media"
-                      >
-                        {s.hasPhoto ? (
-                          <img
-                            src={`/api/proxy-image?url=${encodeURIComponent(s.mediaUrl)}`}
-                            alt="Story image"
-                            className="h-full w-full object-cover"
-                            loading="lazy"
-                            onError={(e) => {
-                              console.error('Image failed to load:', s.mediaUrl)
-                              // Hide image container on error
-                              e.currentTarget.style.display = 'none'
-                            }}
-                          />
-                        ) : s.hasVideo ? (
-                          <video
-                            src={`/api/proxy-image?url=${encodeURIComponent(s.mediaUrl)}`}
-                            className="h-full w-full object-cover"
-                            muted
-                            playsInline
-                            preload="metadata"
-                          />
-                        ) : null}
-                      </a>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Hint */}
-      {!selectedLocation && globeData && (
-        <div className="absolute bottom-4 right-4 bg-black/50 rounded px-3 py-1.5 text-xs text-gray-400">
-          Dot size = story volume
         </div>
       )}
     </div>

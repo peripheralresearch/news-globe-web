@@ -123,6 +123,85 @@ const INITIAL_ZOOM = 0.5 // Initial zoom level for globe view
 const ENTRANCE_DURATION = 5500 // 5.5 seconds for entrance animation
 const ENTRANCE_SPEED_MULTIPLIER = 12 // Start at 12x the idle speed for dramatic entrance
 
+// Helper function to get source icon based on source name
+function getSourceIcon(sourceName: string): string {
+  if (!sourceName) return '📰' // Generic news icon for unknown sources
+
+  const source = sourceName.toLowerCase().trim()
+
+  // Telegram sources
+  if (source.includes('clash report') || source.includes('telegram')) {
+    return '📱'
+  }
+
+  // TV/Broadcasting
+  if (
+    source.includes('bbc') ||
+    source.includes('cnn') ||
+    source.includes('al jazeera') ||
+    source.includes('fox news') ||
+    source.includes('msnbc') ||
+    source.includes('sky news') ||
+    source.includes('channel') ||
+    source.includes('television') ||
+    source.includes('broadcast')
+  ) {
+    return '📺'
+  }
+
+  // Wire services
+  if (
+    source.includes('reuters') ||
+    source.includes('associated press') ||
+    source.includes('ap news') ||
+    source.includes('afp') ||
+    source.includes('dpa') ||
+    source.includes('tass') ||
+    source.includes('xinhua')
+  ) {
+    return '📡'
+  }
+
+  // Social media platforms
+  if (source.includes('twitter') || source.includes('x.com')) {
+    return '🐦'
+  }
+  if (source.includes('facebook')) {
+    return '📘'
+  }
+  if (source.includes('instagram')) {
+    return '📷'
+  }
+  if (source.includes('youtube')) {
+    return '▶️'
+  }
+  if (source.includes('reddit')) {
+    return '🔴'
+  }
+  if (source.includes('tiktok')) {
+    return '🎵'
+  }
+
+  // Online-only news outlets
+  if (
+    source.includes('blog') ||
+    source.includes('online') ||
+    source.includes('digital') ||
+    source.includes('web') ||
+    source.includes('.com') ||
+    source.includes('insider') ||
+    source.includes('buzzfeed') ||
+    source.includes('huffpost') ||
+    source.includes('vox') ||
+    source.includes('axios')
+  ) {
+    return '💻'
+  }
+
+  // Traditional newspapers (default for most named news sources)
+  return '📰'
+}
+
 export default function Home() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
@@ -1470,6 +1549,12 @@ function MapMarker({
                   <p className="text-[10px] text-gray-300 leading-relaxed line-clamp-3">
                     {displaySummary.substring(0, 150)}
                   </p>
+                  {primaryStory?.sourceName && (
+                    <p className="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
+                      <span className="text-[11px]">{getSourceIcon(primaryStory.sourceName)}</span>
+                      <span>{primaryStory.sourceName}</span>
+                    </p>
+                  )}
                   {location.storyCount > 1 && (
                     <div className="flex items-center gap-1 mt-1">
                       <p className="text-[9px] text-white/80">
@@ -1538,8 +1623,9 @@ function MapMarker({
                           </p>
                         )}
                         {story.sourceName && (
-                          <p className="text-[9px] text-gray-400 mt-1">
-                            {story.sourceName}
+                          <p className="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
+                            <span className="text-[11px]">{getSourceIcon(story.sourceName)}</span>
+                            <span>{story.sourceName}</span>
                           </p>
                         )}
                       </div>

@@ -197,7 +197,6 @@ dist
 # Gatsby files
 .cache/
 public/data/
-.claude/
 
 # Storybook build outputs
 .out

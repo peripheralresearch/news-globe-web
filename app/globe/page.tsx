@@ -124,14 +124,30 @@ const ENTRANCE_DURATION = 5500 // 5.5 seconds for entrance animation
 const ENTRANCE_SPEED_MULTIPLIER = 12 // Start at 12x the idle speed for dramatic entrance
 
 // Helper function to get source icon based on source name
-function getSourceIcon(sourceName: string): string {
-  if (!sourceName) return '📰' // Generic news icon for unknown sources
+function getSourceIcon(sourceName: string): JSX.Element {
+  if (!sourceName) {
+    return (
+      <img
+        src="/icons/newspaper.png"
+        alt="news"
+        className="inline-block w-3 h-3 align-middle"
+        style={{ filter: 'brightness(0) invert(1)' }}
+      />
+    )
+  }
 
   const source = sourceName.toLowerCase().trim()
 
   // Telegram sources
   if (source.includes('clash report') || source.includes('telegram')) {
-    return '📱'
+    return (
+      <img
+        src="/icons/telegram.svg"
+        alt="telegram"
+        className="inline-block w-3 h-3 align-middle"
+        style={{ filter: 'brightness(0) invert(1)' }}
+      />
+    )
   }
 
   // TV/Broadcasting
@@ -146,60 +162,25 @@ function getSourceIcon(sourceName: string): string {
     source.includes('television') ||
     source.includes('broadcast')
   ) {
-    return '📺'
+    return (
+      <img
+        src="/icons/television.png"
+        alt="television"
+        className="inline-block w-3 h-3 align-middle"
+        style={{ filter: 'brightness(0) invert(1)' }}
+      />
+    )
   }
 
-  // Wire services
-  if (
-    source.includes('reuters') ||
-    source.includes('associated press') ||
-    source.includes('ap news') ||
-    source.includes('afp') ||
-    source.includes('dpa') ||
-    source.includes('tass') ||
-    source.includes('xinhua')
-  ) {
-    return '📡'
-  }
-
-  // Social media platforms
-  if (source.includes('twitter') || source.includes('x.com')) {
-    return '🐦'
-  }
-  if (source.includes('facebook')) {
-    return '📘'
-  }
-  if (source.includes('instagram')) {
-    return '📷'
-  }
-  if (source.includes('youtube')) {
-    return '▶️'
-  }
-  if (source.includes('reddit')) {
-    return '🔴'
-  }
-  if (source.includes('tiktok')) {
-    return '🎵'
-  }
-
-  // Online-only news outlets
-  if (
-    source.includes('blog') ||
-    source.includes('online') ||
-    source.includes('digital') ||
-    source.includes('web') ||
-    source.includes('.com') ||
-    source.includes('insider') ||
-    source.includes('buzzfeed') ||
-    source.includes('huffpost') ||
-    source.includes('vox') ||
-    source.includes('axios')
-  ) {
-    return '💻'
-  }
-
-  // Traditional newspapers (default for most named news sources)
-  return '📰'
+  // Wire services, social media, and online outlets all use newspaper icon
+  return (
+    <img
+      src="/icons/newspaper.png"
+      alt="news"
+      className="inline-block w-3 h-3 align-middle"
+      style={{ filter: 'brightness(0) invert(1)' }}
+    />
+  )
 }
 
 export default function Home() {
@@ -1537,7 +1518,12 @@ function MapMarker({
                   </div>
                 ) : (
                   <div className="w-24 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center">
-                    <div className="text-gray-500 text-xs">📍</div>
+                    <img
+                      src="/icons/newspaper.png"
+                      alt="location"
+                      className="w-6 h-6"
+                      style={{ filter: 'brightness(0.5) invert(0.5)' }}
+                    />
                   </div>
                 )}
 
@@ -1551,7 +1537,7 @@ function MapMarker({
                   </p>
                   {primaryStory?.sourceName && (
                     <p className="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
-                      <span className="text-[11px]">{getSourceIcon(primaryStory.sourceName)}</span>
+                      {getSourceIcon(primaryStory.sourceName)}
                       <span>{primaryStory.sourceName}</span>
                     </p>
                   )}
@@ -1608,7 +1594,12 @@ function MapMarker({
                         </div>
                       ) : (
                         <div className="w-20 h-14 flex-shrink-0 rounded overflow-hidden bg-gray-800 flex items-center justify-center">
-                          <div className="text-gray-500 text-xs">📰</div>
+                          <img
+                            src="/icons/newspaper.png"
+                            alt="news"
+                            className="w-5 h-5"
+                            style={{ filter: 'brightness(0.5) invert(0.5)' }}
+                          />
                         </div>
                       )}
 
@@ -1624,7 +1615,7 @@ function MapMarker({
                         )}
                         {story.sourceName && (
                           <p className="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
-                            <span className="text-[11px]">{getSourceIcon(story.sourceName)}</span>
+                            {getSourceIcon(story.sourceName)}
                             <span>{story.sourceName}</span>
                           </p>
                         )}

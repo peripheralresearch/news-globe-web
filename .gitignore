@@ -197,7 +197,7 @@ dist
 # Gatsby files
 .cache/
 public/data/
-.claude/
+# .claude/ - Keeping Claude configuration in repo for team collaboration
 
 # Storybook build outputs
 .out

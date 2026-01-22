@@ -4,16 +4,18 @@ import { supabaseServer } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 // Interface for location aggregate from database function
+// NOTE: These coordinates come from event_location - the actual location where news events occurred
 interface LocationAggregate {
   location_id: number;
   location_name: string;
-  latitude: number;
-  longitude: number;
+  latitude: number;      // From event_location
+  longitude: number;     // From event_location
   location_type: string;
   location_subtype: string;
   post_count: number;
   latest_post_date: string;
   default_zoom: number;
+  event_location?: boolean;  // Indicates this is an event location (not just mentioned)
 }
 
 // Interface for post detail from database function
@@ -31,6 +33,30 @@ interface LocationPost {
   media_url: string | null;
 }
 
+// Location data returned for globe visualization
+interface LocationData {
+  entity_name: string;
+  entity_type: string;
+  location_subtype: string;
+  confidence: number;
+  story_count: number;
+  coordinates: [number, number];  // [longitude, latitude] - from event_location
+  default_zoom: number;
+  event_location: boolean;        // Indicates this is an event location
+  stories: Array<{
+    id: string;
+    post_id: number;
+    title: string | null;
+    summary: string | null;
+    created: string;
+    source_name: string;
+    source_url: string;
+    has_photo: boolean;
+    has_video: boolean;
+    media_url: string | null;
+  }>;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = supabaseServer();
@@ -43,9 +69,10 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get('limit');
     const maxLocations = limitParam ? Math.max(1, Math.min(parseInt(limitParam, 10), 50)) : 30;
 
-    console.log(`Globe API - Fetching top ${maxLocations} locations from last ${hours} hours`);
+    console.log(`Globe API - Fetching top ${maxLocations} event locations from last ${hours} hours`);
 
     // Step 1: Get aggregated location data with post counts (OPTIMIZED - single query)
+    // NOTE: This query should filter for event_location to get where news events actually occurred
     const { data: locationAggregates, error: aggregateError } = await supabase
       .rpc('get_location_aggregates_v2', {
         hours_ago: hours,
@@ -86,7 +113,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`Globe API - Found ${locationAggregates.length} locations`);
+    console.log(`Globe API - Found ${locationAggregates.length} event locations`);
 
     // Step 2: Get post details for these locations (OPTIMIZED - single query with limit)
     const locationIds = (locationAggregates as LocationAggregate[]).map(l => l.location_id);
@@ -119,7 +146,7 @@ export async function GET(request: NextRequest) {
       locationPostsMap.get(post.location_id)!.push(post);
     }
 
-    const formattedLocations = (locationAggregates as LocationAggregate[]).map(loc => {
+    const formattedLocations: LocationData[] = (locationAggregates as LocationAggregate[]).map(loc => {
       const posts = locationPostsMap.get(loc.location_id) || [];
 
       // Dedupe posts per location by stable internal id to avoid repeated cards
@@ -157,13 +184,14 @@ export async function GET(request: NextRequest) {
         location_subtype: loc.location_subtype || loc.location_type,
         confidence: 0.8,
         story_count: Number(loc.post_count),
-        coordinates: [loc.longitude, loc.latitude] as [number, number],
+        coordinates: [loc.longitude, loc.latitude] as [number, number],  // event_location coordinates
         default_zoom: loc.default_zoom,
+        event_location: loc.event_location ?? true,  // Mark as event location
         stories: formattedPosts,
-      };
+      } as LocationData;
     });
 
-    console.log(`Globe API - Returning ${formattedLocations.length} locations with posts`);
+    console.log(`Globe API - Returning ${formattedLocations.length} event locations with posts`);
 
     return NextResponse.json(
       {

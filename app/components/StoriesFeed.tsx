@@ -193,6 +193,37 @@ export default function StoriesFeed({
     return `${diffDays}d ago`
   }
 
+  const formatPublishedDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffHours = Math.floor(diffMs / 3600000)
+
+    // For items less than 24 hours old, show relative time
+    if (diffHours < 24) {
+      return formatTimeAgo(dateString)
+    }
+
+    // For older items, show formatted date
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+    })
+  }
+
+  const getFullDateTime = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    })
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -375,7 +406,12 @@ export default function StoriesFeed({
                                 <span>•</span>
                               </>
                             )}
-                            <span>{formatTimeAgo(newsItem.published)}</span>
+                            <span
+                              className="cursor-help"
+                              title={getFullDateTime(newsItem.published)}
+                            >
+                              {formatPublishedDate(newsItem.published)}
+                            </span>
                             {newsItem.link && (
                               <>
                                 <span>•</span>

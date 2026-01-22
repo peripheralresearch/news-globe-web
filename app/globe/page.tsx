@@ -320,6 +320,26 @@ export default function Home() {
     return !isCity
   }, [])
 
+  const applyFogSafe = useCallback((styleName: 'street' | 'satellite') => {
+    if (!map.current || !map.current.isStyleLoaded()) return
+    try {
+      // Keep styling the same; only swap tiles. Disable fog on satellite to avoid Mapbox fog crashes.
+      if (styleName === 'satellite') {
+        map.current.setFog(null)
+      } else {
+        map.current.setFog({
+          'horizon-blend': 0.1,
+          color: '#1a1a1a',
+          'high-color': '#1a1a1a',
+          'space-color': '#000000',
+          'star-intensity': 0.4,
+        })
+      }
+    } catch (err) {
+      console.warn('Fog application failed', err)
+    }
+  }, [])
+
   // Toggle map style handler
   const toggleMapStyle = useCallback(() => {
     if (!map.current) return
@@ -343,15 +363,7 @@ export default function Home() {
 
       // Restore globe projection and atmosphere
       map.current.setProjection('globe')
-
-      // Restore atmosphere
-      map.current.setFog({
-        'horizon-blend': 0.1,
-        color: '#1a1a1a',
-        'high-color': '#1a1a1a',
-        'space-color': '#000000',
-        'star-intensity': 0.4,
-      })
+      applyFogSafe(newStyle)
 
       // Re-add stories source (check if it already exists first)
       if (!map.current.getSource('stories')) {
@@ -815,13 +827,7 @@ export default function Home() {
             map.current.setProjection('globe')
 
           // Set globe atmosphere with white glow (10% brightness)
-            map.current.setFog({
-              'horizon-blend': 0.1,
-            color: '#1a1a1a',
-              'high-color': '#1a1a1a',
-              'space-color': '#000000',
-            'star-intensity': 0.4,
-          })
+          applyFogSafe('street')
 
           // Add ripple ring source (starts hidden, animates on dot click)
           map.current.addSource('equator-ring', {

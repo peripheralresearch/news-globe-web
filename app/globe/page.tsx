@@ -239,6 +239,7 @@ export default function Home() {
   const [globeData, setGlobeData] = useState<GlobeData | null>(null)
   const globeDataRef = useRef<GlobeData | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<LocationAggregate | null>(null)
+  const [clickedLocation, setClickedLocation] = useState<LocationAggregate | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [mapError, setMapError] = useState<string | null>(null)
   const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street')
@@ -339,18 +340,65 @@ export default function Home() {
         }
       }
 
-      // Re-add country border highlight layers (check if they already exist first)
+      // Re-add equator ring source first (needed for ring animation)
+      if (!map.current.getSource('equator-ring')) {
+        map.current.addSource('equator-ring', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: [[0, 0], [0, 0]], // Hidden initially
+            },
+            properties: {},
+          },
+        })
+      }
+
+      // Re-add equator ring layers
+      if (!map.current.getLayer('equator-ring-glow')) {
+        map.current.addLayer({
+          id: 'equator-ring-glow',
+          type: 'line',
+          source: 'equator-ring',
+          paint: {
+            'line-color': '#ffffff',
+            'line-width': 8,
+            'line-opacity': 0.15,
+            'line-blur': 6,
+          },
+        })
+      }
+
+      if (!map.current.getLayer('equator-ring-line')) {
+        map.current.addLayer({
+          id: 'equator-ring-line',
+          type: 'line',
+          source: 'equator-ring',
+          paint: {
+            'line-color': '#ffffff',
+            'line-width': 1.5,
+            'line-opacity': 0.6,
+          },
+        })
+      }
+
+      // Re-add country border sources and layers separately
+      if (!map.current.getSource('country-border-glow')) {
+        map.current.addSource('country-border-glow', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: [],
+          },
+        })
+      }
+
       if (!map.current.getLayer('country-border-glow')) {
         map.current.addLayer({
           id: 'country-border-glow',
           type: 'line',
-          source: {
-            type: 'geojson',
-            data: {
-              type: 'FeatureCollection',
-              features: [],
-            },
-          },
+          source: 'country-border-glow',
           paint: {
             'line-color': '#ffffff',
             'line-width': 6,
@@ -360,17 +408,21 @@ export default function Home() {
         })
       }
 
+      if (!map.current.getSource('country-border-line')) {
+        map.current.addSource('country-border-line', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: [],
+          },
+        })
+      }
+
       if (!map.current.getLayer('country-border-line')) {
         map.current.addLayer({
           id: 'country-border-line',
           type: 'line',
-          source: {
-            type: 'geojson',
-            data: {
-              type: 'FeatureCollection',
-              features: [],
-            },
-          },
+          source: 'country-border-line',
           paint: {
             'line-color': '#ffffff',
             'line-width': 3,
@@ -550,7 +602,13 @@ export default function Home() {
 
       const root = createRoot(el)
       const animationDelay = Math.random() * 3
-      root.render(<MapMarker location={location} animationDelay={animationDelay} />)
+      root.render(
+        <MapMarker
+          location={location}
+          animationDelay={animationDelay}
+          isClicked={clickedLocation?.name === location.name}
+        />
+      )
 
       const marker = new mapboxgl.Marker({
         element: el,
@@ -577,6 +635,7 @@ export default function Home() {
         lastInteractionRef.current = Date.now()
 
         setSelectedLocation(location)
+        setClickedLocation(location)
         const isCountry = isCountryLocation(location)
         const zoom = location.defaultZoom || 5
 
@@ -587,8 +646,11 @@ export default function Home() {
           duration: 1500,
         })
 
-        // Trigger ripple ring animation from the clicked dot
-        triggerRingAnimation(location.coordinates[0], location.coordinates[1])
+        // Trigger ripple ring animation only from globe perspective (zoom < 3)
+        const currentZoom = map.current.getZoom()
+        if (currentZoom < 3) {
+          triggerRingAnimation(location.coordinates[0], location.coordinates[1])
+        }
       })
 
       markersRef.current.push(marker)
@@ -597,7 +659,7 @@ export default function Home() {
     return () => {
       markersRef.current.forEach(marker => marker.remove())
     }
-  }, [globeData, isCountryLocation, triggerRingAnimation])
+  }, [globeData, isCountryLocation, triggerRingAnimation, clickedLocation])
 
   // Entrance animation with smooth deceleration (ease-out)
   const animateEntrance = useCallback(() => {
@@ -825,17 +887,28 @@ export default function Home() {
           }
           pulseFrameRef.current = requestAnimationFrame(animatePulse)
 
-          // Add country border highlight layers (using fill-outline for polygon geometries)
+          // Add country border sources first
+          map.current.addSource('country-border-glow', {
+            type: 'geojson',
+            data: {
+              type: 'FeatureCollection',
+              features: [],
+            },
+          })
+
+          map.current.addSource('country-border-line', {
+            type: 'geojson',
+            data: {
+              type: 'FeatureCollection',
+              features: [],
+            },
+          })
+
+          // Then add country border highlight layers
           map.current.addLayer({
             id: 'country-border-glow',
             type: 'line',
-            source: {
-              type: 'geojson',
-              data: {
-                type: 'FeatureCollection',
-                features: [],
-              },
-            },
+            source: 'country-border-glow',
             paint: {
               'line-color': '#ffffff',
               'line-width': 6,
@@ -847,13 +920,7 @@ export default function Home() {
           map.current.addLayer({
             id: 'country-border-line',
             type: 'line',
-            source: {
-              type: 'geojson',
-              data: {
-                type: 'FeatureCollection',
-                features: [],
-              },
-            },
+            source: 'country-border-line',
             paint: {
               'line-color': '#ffffff',
               'line-width': 3,
@@ -1021,6 +1088,7 @@ export default function Home() {
         }
         // Clear selection to resume rotation
         setSelectedLocation(null)
+        setClickedLocation(null)
         // Reset interaction timer so rotation starts after normal idle timeout
         lastInteractionRef.current = Date.now()
       }, ZOOM_OUT_TIMEOUT)
@@ -1178,6 +1246,28 @@ export default function Home() {
     updateBorderHighlight()
   }, [selectedLocation, isCountryLocation])
 
+  // Close panel when clicking on the map background
+  useEffect(() => {
+    if (!map.current) return
+
+    const handleMapClick = (e: mapboxgl.MapMouseEvent) => {
+      // Only clear if we didn't click on a marker
+      const features = map.current?.queryRenderedFeatures(e.point, {
+        layers: ['stories-dots']
+      })
+
+      if (!features || features.length === 0) {
+        setClickedLocation(null)
+      }
+    }
+
+    map.current.on('click', handleMapClick)
+
+    return () => {
+      map.current?.off('click', handleMapClick)
+    }
+  }, [])
+
   return (
     <>
     <div className="relative w-full h-screen bg-black overflow-hidden">
@@ -1217,10 +1307,19 @@ export default function Home() {
   )
 }
 
-function MapMarker({ location, animationDelay }: { location: LocationAggregate; animationDelay: number }) {
+function MapMarker({
+  location,
+  animationDelay,
+  isClicked = false
+}: {
+  location: LocationAggregate;
+  animationDelay: number;
+  isClicked?: boolean;
+}) {
   const [isPressed, setIsPressed] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [ripples, setRipples] = useState<number[]>([])
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // Don't stop propagation so click can reach parent
@@ -1261,6 +1360,18 @@ function MapMarker({ location, animationDelay }: { location: LocationAggregate; 
     setIsHovered(true)
   }
 
+  const handlePanelClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (location.storyCount > 1) {
+      setIsExpanded(!isExpanded)
+    }
+  }
+
+  const handleCloseExpanded = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsExpanded(false)
+  }
+
   // Size based on story count (reduced by 50%)
   const baseSize = Math.min(6 + location.storyCount * 0.25, 10) * 0.85
 
@@ -1269,8 +1380,11 @@ function MapMarker({ location, animationDelay }: { location: LocationAggregate; 
   const displayTitle = primaryStory?.title || location.name
   const displaySummary = primaryStory?.summary || `${location.storyCount} stories in this location`
 
+  // Show panel if hovered OR clicked
+  const showPanel = isHovered || isClicked
+
   return (
-    <div className="relative" style={{ zIndex: isHovered ? 1 : 100 }}>
+    <div className="relative" style={{ zIndex: showPanel ? 1 : 100 }}>
       <div
         className="bg-white rounded-full transition-all duration-100 ease-out cursor-pointer"
         style={{
@@ -1278,10 +1392,10 @@ function MapMarker({ location, animationDelay }: { location: LocationAggregate; 
           height: `${baseSize}px`,
           animation: `pulse-glow 2.5s ease-in-out infinite`,
           animationDelay: `${animationDelay}s`,
-          transform: isPressed ? 'scale(0.75)' : isHovered ? 'scale(1.5)' : 'scale(1)',
+          transform: isPressed ? 'scale(0.75)' : showPanel ? 'scale(1.5)' : 'scale(1)',
           boxShadow: '0 1px 3px rgba(0,0,0,0.8), inset 0 0 2px rgba(255,255,255,0.3)',
           position: 'relative',
-          zIndex: isHovered ? 200 : 100,
+          zIndex: showPanel ? 200 : 100,
         }}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
@@ -1295,51 +1409,132 @@ function MapMarker({ location, animationDelay }: { location: LocationAggregate; 
         ))}
       </div>
 
-      {/* Hover Card with slide-in fade animation */}
-      {isHovered && (
+      {/* Hover/Click Panel with slide-in fade animation */}
+      {showPanel && (
         <div
-          className="absolute hover-card-enter pointer-events-none"
+          className="absolute hover-card-enter"
           style={{
             left: `${baseSize + 20}px`,
             top: '50%',
             transform: 'translateY(-50%)',
-            width: '320px',
+            width: isExpanded ? '400px' : '320px',
             zIndex: 50, // Below other dots (100) but above map
+            transition: 'width 0.2s ease-out',
           }}
         >
-          <div className="bg-black/95 backdrop-blur-3xl backdrop-saturate-0 border border-white/40 rounded-xl p-3 text-white shadow-2xl flex items-start gap-3">
-            {/* Thumbnail */}
-            {primaryStory?.mediaUrl ? (
-              <div className="relative w-24 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800">
-                <img
-                  src={`/api/proxy-image?url=${encodeURIComponent(primaryStory.mediaUrl)}`}
-                  alt={displayTitle.substring(0, 50)}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none'
-                  }}
-                />
+          <div
+            className={`bg-black/95 backdrop-blur-3xl backdrop-saturate-0 border border-white/40 rounded-xl text-white shadow-2xl transition-all ${
+              location.storyCount > 1 ? 'cursor-pointer hover:border-white/60 hover:bg-black' : ''
+            }`}
+            onClick={handlePanelClick}
+          >
+            {!isExpanded ? (
+              // Collapsed view - shows primary story
+              <div className="p-3 flex items-start gap-3">
+                {/* Thumbnail */}
+                {primaryStory?.mediaUrl ? (
+                  <div className="relative w-24 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800">
+                    <img
+                      src={`/api/proxy-image?url=${encodeURIComponent(primaryStory.mediaUrl)}`}
+                      alt={displayTitle.substring(0, 50)}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none'
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-24 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center">
+                    <div className="text-gray-500 text-xs">📍</div>
+                  </div>
+                )}
+
+                {/* Text Content */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-bold text-gray-100 leading-tight mb-1 line-clamp-2">
+                    {displayTitle.substring(0, 80)}
+                  </h3>
+                  <p className="text-[10px] text-gray-300 leading-relaxed line-clamp-3">
+                    {displaySummary.substring(0, 150)}
+                  </p>
+                  {location.storyCount > 1 && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <p className="text-[9px] text-white/80">
+                        +{location.storyCount - 1} more {location.storyCount === 2 ? 'story' : 'stories'}
+                      </p>
+                      <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
-              <div className="w-24 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center">
-                <div className="text-gray-500 text-xs">📍</div>
+              // Expanded view - shows all stories
+              <div className="p-3">
+                {/* Header with close button */}
+                <div className="flex items-start justify-between mb-3 pb-2 border-b border-white/20">
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-100">{location.name}</h3>
+                    <p className="text-[10px] text-gray-400">{location.storyCount} {location.storyCount === 1 ? 'story' : 'stories'}</p>
+                  </div>
+                  <button
+                    onClick={handleCloseExpanded}
+                    className="p-1 hover:bg-white/10 rounded transition-colors"
+                    aria-label="Close expanded view"
+                  >
+                    <svg className="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Stories list with scroll */}
+                <div className="space-y-3 max-h-96 overflow-y-auto pr-2" style={{
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: 'rgba(255,255,255,0.3) transparent'
+                }}>
+                  {location.stories.map((story, index) => (
+                    <div key={story.id || index} className="flex items-start gap-2 pb-3 border-b border-white/10 last:border-0">
+                      {/* Story thumbnail */}
+                      {story.mediaUrl ? (
+                        <div className="relative w-20 h-14 flex-shrink-0 rounded overflow-hidden bg-gray-800">
+                          <img
+                            src={`/api/proxy-image?url=${encodeURIComponent(story.mediaUrl)}`}
+                            alt={story.title?.substring(0, 50) || 'Story image'}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none'
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-20 h-14 flex-shrink-0 rounded overflow-hidden bg-gray-800 flex items-center justify-center">
+                          <div className="text-gray-500 text-xs">📰</div>
+                        </div>
+                      )}
+
+                      {/* Story content */}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-semibold text-gray-100 leading-tight mb-1 line-clamp-2">
+                          {story.title || 'Untitled story'}
+                        </h4>
+                        {story.summary && (
+                          <p className="text-[10px] text-gray-300 leading-relaxed line-clamp-2">
+                            {story.summary.substring(0, 120)}
+                          </p>
+                        )}
+                        {story.sourceName && (
+                          <p className="text-[9px] text-gray-400 mt-1">
+                            {story.sourceName}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-
-            {/* Text Content */}
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-bold text-gray-100 leading-tight mb-1 line-clamp-2">
-                {displayTitle.substring(0, 80)}
-              </h3>
-              <p className="text-[10px] text-gray-300 leading-relaxed line-clamp-3">
-                {displaySummary.substring(0, 150)}
-              </p>
-              {location.storyCount > 1 && (
-                <p className="text-[9px] text-white/80 mt-1">
-                  +{location.storyCount - 1} more {location.storyCount === 2 ? 'story' : 'stories'}
-                </p>
-              )}
-            </div>
           </div>
         </div>
       )}

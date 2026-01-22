@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: 'Peripheral',
   description: 'Global message visualization on an interactive 3D globe',
   icons: {
-    icon: '/icons/connections-yellow.png',
+    icon: '/icons/connections-grey.png',
   },
 }
 

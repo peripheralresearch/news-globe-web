@@ -7,6 +7,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Peripheral',
   description: 'Global message visualization on an interactive 3D globe',
+  icons: {
+    icon: '/icons/connections-yellow.png',
+  },
 }
 
 export default function RootLayout({

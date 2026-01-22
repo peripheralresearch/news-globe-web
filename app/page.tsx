@@ -123,6 +123,66 @@ const INITIAL_ZOOM = 0.5 // Initial zoom level for globe view
 const ENTRANCE_DURATION = 5500 // 5.5 seconds for entrance animation
 const ENTRANCE_SPEED_MULTIPLIER = 12 // Start at 12x the idle speed for dramatic entrance
 
+// Helper function to get source icon based on source name
+function getSourceIcon(sourceName: string): JSX.Element {
+  if (!sourceName) {
+    return (
+      <img
+        src="/icons/newspaper.png"
+        alt="news"
+        className="inline-block w-3 h-3 align-middle"
+        style={{ filter: 'brightness(0) invert(1)' }}
+      />
+    )
+  }
+
+  const source = sourceName.toLowerCase().trim()
+
+  // Telegram sources
+  if (source.includes('clash report') || source.includes('telegram')) {
+    return (
+      <img
+        src="/icons/telegram.svg"
+        alt="telegram"
+        className="inline-block w-3 h-3 align-middle"
+        style={{ filter: 'brightness(0) invert(1)' }}
+      />
+    )
+  }
+
+  // TV/Broadcasting
+  if (
+    source.includes('bbc') ||
+    source.includes('cnn') ||
+    source.includes('al jazeera') ||
+    source.includes('fox news') ||
+    source.includes('msnbc') ||
+    source.includes('sky news') ||
+    source.includes('channel') ||
+    source.includes('television') ||
+    source.includes('broadcast')
+  ) {
+    return (
+      <img
+        src="/icons/television.png"
+        alt="television"
+        className="inline-block w-3 h-3 align-middle"
+        style={{ filter: 'brightness(0) invert(1)' }}
+      />
+    )
+  }
+
+  // Wire services, social media, and online outlets all use newspaper icon
+  return (
+    <img
+      src="/icons/newspaper.png"
+      alt="news"
+      className="inline-block w-3 h-3 align-middle"
+      style={{ filter: 'brightness(0) invert(1)' }}
+    />
+  )
+}
+
 export default function Home() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
@@ -239,6 +299,7 @@ export default function Home() {
   const [globeData, setGlobeData] = useState<GlobeData | null>(null)
   const globeDataRef = useRef<GlobeData | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<LocationAggregate | null>(null)
+  const [clickedLocation, setClickedLocation] = useState<LocationAggregate | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [mapError, setMapError] = useState<string | null>(null)
   const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street')
@@ -605,6 +666,7 @@ export default function Home() {
         <MapMarker
           location={location}
           animationDelay={animationDelay}
+          isClicked={clickedLocation?.name === location.name}
         />
       )
 
@@ -633,6 +695,7 @@ export default function Home() {
         lastInteractionRef.current = Date.now()
 
         setSelectedLocation(location)
+        setClickedLocation(location)
         const isCountry = isCountryLocation(location)
         const zoom = location.defaultZoom || 5
 
@@ -643,8 +706,11 @@ export default function Home() {
           duration: 1500,
         })
 
-        // Trigger ripple ring animation
-        triggerRingAnimation(location.coordinates[0], location.coordinates[1])
+        // Trigger ripple ring animation only from globe perspective (zoom < 3)
+        const currentZoom = map.current.getZoom()
+        if (currentZoom < 3) {
+          triggerRingAnimation(location.coordinates[0], location.coordinates[1])
+        }
       })
 
       markersRef.current.push(marker)
@@ -653,7 +719,7 @@ export default function Home() {
     return () => {
       markersRef.current.forEach(marker => marker.remove())
     }
-  }, [globeData, isCountryLocation, triggerRingAnimation])
+  }, [globeData, isCountryLocation, triggerRingAnimation, clickedLocation])
 
   // Entrance animation with smooth deceleration (ease-out)
   const animateEntrance = useCallback(() => {
@@ -1058,6 +1124,44 @@ export default function Home() {
     return () => clearInterval(idleCheckInterval)
   }, [checkIdleState])
 
+  // Auto zoom-out after 1 minute when viewing a story
+  useEffect(() => {
+    // Clear any existing timeout
+    if (zoomOutTimeoutRef.current) {
+      clearTimeout(zoomOutTimeoutRef.current)
+      zoomOutTimeoutRef.current = null
+    }
+
+    // If a location is selected, start the zoom-out timer
+    if (selectedLocation && map.current) {
+      console.log('⏱️ Starting 1-minute auto zoom-out timer')
+      zoomOutTimeoutRef.current = setTimeout(() => {
+        console.log('⏰ 1 minute elapsed - zooming back out to globe view')
+        if (map.current) {
+          map.current.flyTo({
+            center: [0, 30],
+            zoom: INITIAL_ZOOM,
+            pitch: 0,
+            bearing: 0,
+            duration: 2000, // 2 second animation
+          })
+        }
+        // Clear selection to resume rotation
+        setSelectedLocation(null)
+        setClickedLocation(null)
+        // Reset interaction timer so rotation starts after normal idle timeout
+        lastInteractionRef.current = Date.now()
+      }, ZOOM_OUT_TIMEOUT)
+    }
+
+    // Cleanup on unmount or when selectedLocation changes
+    return () => {
+      if (zoomOutTimeoutRef.current) {
+        clearTimeout(zoomOutTimeoutRef.current)
+        zoomOutTimeoutRef.current = null
+      }
+    }
+  }, [selectedLocation])
 
   // Update country border highlight when selection changes
   useEffect(() => {
@@ -1202,6 +1306,27 @@ export default function Home() {
     updateBorderHighlight()
   }, [selectedLocation, isCountryLocation])
 
+  // Close panel when clicking on the map background
+  useEffect(() => {
+    if (!map.current) return
+
+    const handleMapClick = (e: mapboxgl.MapMouseEvent) => {
+      // Only clear if we didn't click on a marker
+      const features = map.current?.queryRenderedFeatures(e.point, {
+        layers: ['stories-dots']
+      })
+
+      if (!features || features.length === 0) {
+        setClickedLocation(null)
+      }
+    }
+
+    map.current.on('click', handleMapClick)
+
+    return () => {
+      map.current?.off('click', handleMapClick)
+    }
+  }, [])
 
   return (
     <>
@@ -1223,11 +1348,12 @@ export default function Home() {
             title={`Switch to ${mapStyle === 'street' ? 'satellite' : 'street'} view`}
           >
             {mapStyle === 'street' ? (
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3v18h18M3 10h4l3-3 3 3 3-3 3 3h4" />
-                <circle cx="12" cy="16" r="2" strokeWidth={2} />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v-8" />
-              </svg>
+              <img
+                src="/icons/satellite.png"
+                alt=""
+                className="h-5 w-5 invert"
+                aria-hidden="true"
+              />
             ) : (
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
@@ -1244,14 +1370,17 @@ export default function Home() {
 
 function MapMarker({
   location,
-  animationDelay
+  animationDelay,
+  isClicked = false
 }: {
   location: LocationAggregate;
   animationDelay: number;
+  isClicked?: boolean;
 }) {
   const [isPressed, setIsPressed] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [ripples, setRipples] = useState<number[]>([])
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // Don't stop propagation so click can reach parent
@@ -1292,6 +1421,28 @@ function MapMarker({
     setIsHovered(true)
   }
 
+  const handlePanelClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (location.storyCount > 1) {
+      setIsExpanded(!isExpanded)
+    }
+  }
+
+  const handleCloseExpanded = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsExpanded(false)
+  }
+
+  const handlePanelWheel = (e: React.WheelEvent) => {
+    // Prevent wheel events from propagating to the map
+    e.stopPropagation()
+  }
+
+  const handlePanelTouchMove = (e: React.TouchEvent) => {
+    // Prevent touch scroll events from propagating to the map
+    e.stopPropagation()
+  }
+
   // Size based on story count (reduced by 50%)
   const baseSize = Math.min(6 + location.storyCount * 0.25, 10) * 0.85
 
@@ -1300,8 +1451,8 @@ function MapMarker({
   const displayTitle = primaryStory?.title || location.name
   const displaySummary = primaryStory?.summary || `${location.storyCount} stories in this location`
 
-  // Show panel only on hover
-  const showPanel = isHovered
+  // Show panel if hovered OR clicked
+  const showPanel = isHovered || isClicked
 
   return (
     <div className="relative" style={{ zIndex: showPanel ? 1 : 100 }}>
@@ -1329,7 +1480,7 @@ function MapMarker({
         ))}
       </div>
 
-      {/* Hover Panel with slide-in fade animation */}
+      {/* Hover/Click Panel with slide-in fade animation */}
       {showPanel && (
         <div
           className="absolute hover-card-enter"
@@ -1337,47 +1488,144 @@ function MapMarker({
             left: `${baseSize + 20}px`,
             top: '50%',
             transform: 'translateY(-50%)',
-            width: '320px',
+            width: isExpanded ? '400px' : '320px',
             zIndex: 50, // Below other dots (100) but above map
+            transition: 'width 0.2s ease-out',
+            pointerEvents: 'auto', // Ensure panel captures pointer events
           }}
+          onWheel={handlePanelWheel}
+          onTouchMove={handlePanelTouchMove}
         >
-          <div className="bg-black/95 backdrop-blur-3xl backdrop-saturate-0 border border-white/40 rounded-xl text-white shadow-2xl">
-            <div className="p-3 flex items-start gap-3">
-              {/* Thumbnail */}
-              {primaryStory?.mediaUrl ? (
-                <div className="relative w-24 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800">
-                  <img
-                    src={`/api/proxy-image?url=${encodeURIComponent(primaryStory.mediaUrl)}`}
-                    alt={displayTitle.substring(0, 50)}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none'
-                    }}
-                  />
-                </div>
-              ) : (
-                <div className="w-24 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center">
-                  <div className="text-gray-500 text-xs">📍</div>
-                </div>
-              )}
-
-              {/* Text Content */}
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-bold text-gray-100 leading-tight mb-1 line-clamp-2">
-                  {displayTitle.substring(0, 80)}
-                </h3>
-                <p className="text-[10px] text-gray-300 leading-relaxed line-clamp-3">
-                  {displaySummary.substring(0, 150)}
-                </p>
-                {location.storyCount > 1 && (
-                  <div className="flex items-center gap-1 mt-1">
-                    <p className="text-[9px] text-white/80">
-                      +{location.storyCount - 1} more {location.storyCount === 2 ? 'story' : 'stories'}
-                    </p>
+          <div
+            className={`bg-black/95 backdrop-blur-3xl backdrop-saturate-0 border border-white/40 rounded-xl text-white shadow-2xl transition-all ${
+              location.storyCount > 1 ? 'cursor-pointer hover:border-white/60 hover:bg-black' : ''
+            }`}
+            onClick={handlePanelClick}
+          >
+            {!isExpanded ? (
+              // Collapsed view - shows primary story
+              <div className="p-3 flex items-start gap-3">
+                {/* Thumbnail */}
+                {primaryStory?.mediaUrl ? (
+                  <div className="relative w-24 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800">
+                    <img
+                      src={`/api/proxy-image?url=${encodeURIComponent(primaryStory.mediaUrl)}`}
+                      alt={displayTitle.substring(0, 50)}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none'
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-24 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center">
+                    <img
+                      src="/icons/newspaper.png"
+                      alt="location"
+                      className="w-6 h-6"
+                      style={{ filter: 'brightness(0.5) invert(0.5)' }}
+                    />
                   </div>
                 )}
+
+                {/* Text Content */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-bold text-gray-100 leading-tight mb-1 line-clamp-2">
+                    {displayTitle.substring(0, 80)}
+                  </h3>
+                  <p className="text-[10px] text-gray-300 leading-relaxed line-clamp-3">
+                    {displaySummary.substring(0, 150)}
+                  </p>
+                  {primaryStory?.sourceName && (
+                    <p className="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
+                      {getSourceIcon(primaryStory.sourceName)}
+                      <span>{primaryStory.sourceName}</span>
+                    </p>
+                  )}
+                  {location.storyCount > 1 && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <p className="text-[9px] text-white/80">
+                        +{location.storyCount - 1} more {location.storyCount === 2 ? 'story' : 'stories'}
+                      </p>
+                      <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              // Expanded view - shows all stories
+              <div className="p-3">
+                {/* Header with close button */}
+                <div className="flex items-start justify-between mb-3 pb-2 border-b border-white/20">
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-100">{location.name}</h3>
+                    <p className="text-[10px] text-gray-400">{location.storyCount} {location.storyCount === 1 ? 'story' : 'stories'}</p>
+                  </div>
+                  <button
+                    onClick={handleCloseExpanded}
+                    className="p-1 hover:bg-white/10 rounded transition-colors"
+                    aria-label="Close expanded view"
+                  >
+                    <svg className="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Stories list with scroll */}
+                <div className="space-y-3 max-h-96 overflow-y-auto pr-2" style={{
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: 'rgba(255,255,255,0.3) transparent'
+                }}>
+                  {location.stories.map((story, index) => (
+                    <div key={story.id || index} className="flex items-start gap-2 pb-3 border-b border-white/10 last:border-0">
+                      {/* Story thumbnail */}
+                      {story.mediaUrl ? (
+                        <div className="relative w-20 h-14 flex-shrink-0 rounded overflow-hidden bg-gray-800">
+                          <img
+                            src={`/api/proxy-image?url=${encodeURIComponent(story.mediaUrl)}`}
+                            alt={story.title?.substring(0, 50) || 'Story image'}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none'
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-20 h-14 flex-shrink-0 rounded overflow-hidden bg-gray-800 flex items-center justify-center">
+                          <img
+                            src="/icons/newspaper.png"
+                            alt="news"
+                            className="w-5 h-5"
+                            style={{ filter: 'brightness(0.5) invert(0.5)' }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Story content */}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-semibold text-gray-100 leading-tight mb-1 line-clamp-2">
+                          {story.title || 'Untitled story'}
+                        </h4>
+                        {story.summary && (
+                          <p className="text-[10px] text-gray-300 leading-relaxed line-clamp-2">
+                            {story.summary.substring(0, 120)}
+                          </p>
+                        )}
+                        {story.sourceName && (
+                          <p className="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
+                            {getSourceIcon(story.sourceName)}
+                            <span>{story.sourceName}</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

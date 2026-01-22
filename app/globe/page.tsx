@@ -1372,6 +1372,16 @@ function MapMarker({
     setIsExpanded(false)
   }
 
+  const handlePanelWheel = (e: React.WheelEvent) => {
+    // Prevent wheel events from propagating to the map
+    e.stopPropagation()
+  }
+
+  const handlePanelTouchMove = (e: React.TouchEvent) => {
+    // Prevent touch scroll events from propagating to the map
+    e.stopPropagation()
+  }
+
   // Size based on story count (reduced by 50%)
   const baseSize = Math.min(6 + location.storyCount * 0.25, 10) * 0.85
 
@@ -1420,7 +1430,10 @@ function MapMarker({
             width: isExpanded ? '400px' : '320px',
             zIndex: 50, // Below other dots (100) but above map
             transition: 'width 0.2s ease-out',
+            pointerEvents: 'auto', // Ensure panel captures pointer events
           }}
+          onWheel={handlePanelWheel}
+          onTouchMove={handlePanelTouchMove}
         >
           <div
             className={`bg-black/95 backdrop-blur-3xl backdrop-saturate-0 border border-white/40 rounded-xl text-white shadow-2xl transition-all ${

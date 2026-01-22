@@ -423,9 +423,9 @@ body.fullscreen-map {
 
 /* Custom cursor styling */
 /* Note: CSS filters cannot be applied directly to cursor images in browsers */
-/* The cursor.png image should be pre-styled as pastel yellow */
-/* You can process the image using an image editor with these filter values: */
-/* - Sepia: 100%, Saturate: 300%, Hue-rotate: 15deg, Brightness: 110% */
+/* The cursor.png has been pre-processed to golden/amber yellow (#FFC857) */
+/* Original black cursor backed up as cursor_black_backup.png */
+/* To regenerate: run `node convert_cursor.js` */
 
 * {
   cursor: url('/icons/cursor.png') 12 12, auto;

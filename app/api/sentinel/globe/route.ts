@@ -122,7 +122,16 @@ export async function GET(request: NextRequest) {
     const formattedLocations = (locationAggregates as LocationAggregate[]).map(loc => {
       const posts = locationPostsMap.get(loc.location_id) || [];
 
-      const formattedPosts = posts.map(post => {
+      // Dedupe posts per location by stable internal id to avoid repeated cards
+      const seen = new Set<string>();
+      const uniquePosts = posts.filter(post => {
+        if (!post.post_internal_id) return true;
+        if (seen.has(post.post_internal_id)) return false;
+        seen.add(post.post_internal_id);
+        return true;
+      });
+
+      const formattedPosts = uniquePosts.map(post => {
         const channelUsername = post.channel_username?.replace(/^@/, '');
         const sourceUrl = channelUsername && post.post_id
           ? `https://t.me/${channelUsername}/${post.post_id}`

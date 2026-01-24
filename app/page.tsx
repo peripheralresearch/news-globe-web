@@ -13,14 +13,16 @@ if (typeof document !== 'undefined') {
   style.textContent = `
     @keyframes pulse-glow {
       0%, 100% {
-        box-shadow: 0 0 8px rgba(255, 255, 255, 0.15),
-                    0 0 16px rgba(255, 255, 255, 0.08),
-                    0 0 24px rgba(255, 255, 255, 0.04);
+        box-shadow: 0 0 12px rgba(255, 255, 255, 0.4),
+                    0 0 24px rgba(255, 255, 255, 0.25),
+                    0 0 36px rgba(255, 255, 255, 0.15),
+                    0 0 48px rgba(255, 255, 255, 0.08);
       }
       50% {
-        box-shadow: 0 0 14px rgba(255, 255, 255, 0.25),
-                    0 0 28px rgba(255, 255, 255, 0.15),
-                    0 0 42px rgba(255, 255, 255, 0.08);
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.6),
+                    0 0 40px rgba(255, 255, 255, 0.4),
+                    0 0 60px rgba(255, 255, 255, 0.25),
+                    0 0 80px rgba(255, 255, 255, 0.15);
       }
     }
 
@@ -76,18 +78,19 @@ interface NewsItem {
     id: string
     title: string | null
     summary: string | null
-  created: string
-  location: string
-  coordinates: [number, number]
-  storyCount?: number
+    created: string
+    location: string
+    coordinates: [number, number]  // From event_location - where the news event occurred
+    storyCount?: number
 }
 
 interface LocationAggregate {
   name: string
   locationSubtype: string
-  coordinates: [number, number]
+  coordinates: [number, number]  // From event_location - actual location where events occurred
   defaultZoom?: number
   storyCount: number
+  eventLocation?: boolean        // Indicates this is an event location (not just mentioned)
   stories: Array<{
     id: string
     title: string | null
@@ -181,7 +184,51 @@ function getSourceIcon(sourceName: string): JSX.Element {
       style={{ filter: 'brightness(0) invert(1)' }}
     />
   )
+
 }
+// Helper function to format date string
+function formatDate(dateString: string): string {
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) {
+      return 'Unknown date'
+    }
+    
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    
+    // Check if date is today
+    if (date.toDateString() === today.toDateString()) {
+      return date.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      })
+    }
+    
+    // Check if date is yesterday
+    if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday'
+    }
+    
+    // Check if date is within last 7 days
+    const daysAgo = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+    if (daysAgo < 7) {
+      return `${daysAgo} days ago`
+    }
+    
+    // Otherwise show month and day
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+    })
+  } catch {
+    return 'Unknown date'
+  }
+}
+
 
 export default function Home() {
   const mapContainer = useRef<HTMLDivElement>(null)
@@ -382,22 +429,64 @@ export default function Home() {
       }
 
       // Re-add glow layers (check if they already exist first)
-      for (let i = 0; i < 3; i++) {
-        const layerId = `stories-glow-${i}`
-        if (!map.current.getLayer(layerId)) {
-          map.current.addLayer({
-            id: layerId,
-            type: 'circle',
-            source: 'stories',
-            filter: ['==', ['%', ['to-number', ['get', 'id']], 3], i],
-            paint: {
-              'circle-radius': 4,
-              'circle-color': '#ffffff',
-              'circle-opacity': 0.3,
-              'circle-blur': 1,
-            },
-          })
-        }
+      if (!map.current.getLayer('stories-glow-outer')) {
+        map.current.addLayer({
+          id: 'stories-glow-outer',
+          type: 'circle',
+          source: 'stories',
+          paint: {
+            'circle-radius': [
+              'interpolate',
+              ['linear'],
+              ['coalesce', ['get', 'storyCount'], 1],
+              1, 12,
+              25, 18
+            ],
+            'circle-color': '#ffffff',
+            'circle-opacity': 0.15,
+            'circle-blur': 1,
+          },
+        })
+      }
+
+      if (!map.current.getLayer('stories-glow-middle')) {
+        map.current.addLayer({
+          id: 'stories-glow-middle',
+          type: 'circle',
+          source: 'stories',
+          paint: {
+            'circle-radius': [
+              'interpolate',
+              ['linear'],
+              ['coalesce', ['get', 'storyCount'], 1],
+              1, 8,
+              25, 12
+            ],
+            'circle-color': '#ffffff',
+            'circle-opacity': 0.25,
+            'circle-blur': 0.8,
+          },
+        })
+      }
+
+      if (!map.current.getLayer('stories-glow-inner')) {
+        map.current.addLayer({
+          id: 'stories-glow-inner',
+          type: 'circle',
+          source: 'stories',
+          paint: {
+            'circle-radius': [
+              'interpolate',
+              ['linear'],
+              ['coalesce', ['get', 'storyCount'], 1],
+              1, 5,
+              25, 8
+            ],
+            'circle-color': '#ffffff',
+            'circle-opacity': 0.4,
+            'circle-blur': 0.5,
+          },
+        })
       }
 
       // Re-add equator ring source first (needed for ring animation)
@@ -604,7 +693,7 @@ export default function Home() {
   }, [fetchGlobePage])
 
 
-  // Update map with news item points
+  // Update map with news item points plotted at event_location coordinates
   const updateMapData = useCallback((data: GlobeData) => {
     if (!map.current) {
       console.warn('Map not initialized, cannot update data')
@@ -613,22 +702,35 @@ export default function Home() {
 
     console.log('Updating map with', data.newsItems.length, 'news items')
 
-    // Create news item features
-    const newsItemFeatures: Feature<Point>[] = data.newsItems.map((item) => ({
-      type: 'Feature',
-      id: item.id, // Feature-level ID required for feature-state
-      geometry: {
-        type: 'Point',
-        coordinates: item.coordinates,
-      },
-      properties: {
-        id: item.id,
-        title: item.title,
-        location: item.location,
-        created: item.created,
-        storyCount: item.storyCount || 1,
+    // Helper function to generate a pseudo-random phase offset (0-1) from coordinates
+    // This ensures each dot has a unique but deterministic phase
+    const generatePhaseOffset = (lng: number, lat: number, id: string): number => {
+      // Use coordinates and ID to create a unique seed
+      const seed = Math.abs(Math.sin(lng * 12.9898 + lat * 78.233 + id.charCodeAt(0) * 43758.5453))
+      return seed % 1 // Returns value between 0 and 1
+    }
+
+    // Create news item features from event_location data
+    const newsItemFeatures: Feature<Point>[] = data.newsItems.map((item) => {
+      const phaseOffset = generatePhaseOffset(item.coordinates[0], item.coordinates[1], item.id)
+
+      return {
+        type: 'Feature',
+        id: item.id, // Feature-level ID required for feature-state
+        geometry: {
+          type: 'Point',
+          coordinates: item.coordinates,
+        },
+        properties: {
+          id: item.id,
+          title: item.title,
+          location: item.location,
+          created: item.created,
+          storyCount: item.storyCount || 1,
+          phaseOffset: phaseOffset, // Unique phase offset for each dot (0-1)
+        }
       }
-    }))
+    })
 
     storiesRef.current = { type: 'FeatureCollection', features: newsItemFeatures }
 
@@ -885,22 +987,63 @@ export default function Home() {
             },
           })
 
-          // Create multiple glow layers with different phase groups
-          // This creates chaotic pulsing by having 3 groups pulse at different times
-          for (let i = 0; i < 3; i++) {
-            map.current.addLayer({
-              id: `stories-glow-${i}`,
-              type: 'circle',
-              source: 'stories',
-              filter: ['==', ['%', ['to-number', ['get', 'id']], 3], i],
-              paint: {
-                'circle-radius': 4,
-                'circle-color': '#ffffff',
-                'circle-opacity': 0.3,
-                'circle-blur': 1,
-              },
-            })
-          }
+          // Create multiple glow layers for enhanced visual effect
+          // Outer glow layer 1 - largest, most diffused
+          map.current.addLayer({
+            id: 'stories-glow-outer',
+            type: 'circle',
+            source: 'stories',
+            paint: {
+              'circle-radius': [
+                'interpolate',
+                ['linear'],
+                ['coalesce', ['get', 'storyCount'], 1],
+                1, 12,
+                25, 18
+              ],
+              'circle-color': '#ffffff',
+              'circle-opacity': 0.15,
+              'circle-blur': 1,
+            },
+          })
+
+          // Middle glow layer - medium size
+          map.current.addLayer({
+            id: 'stories-glow-middle',
+            type: 'circle',
+            source: 'stories',
+            paint: {
+              'circle-radius': [
+                'interpolate',
+                ['linear'],
+                ['coalesce', ['get', 'storyCount'], 1],
+                1, 8,
+                25, 12
+              ],
+              'circle-color': '#ffffff',
+              'circle-opacity': 0.25,
+              'circle-blur': 0.8,
+            },
+          })
+
+          // Inner glow layer - smallest, brightest
+          map.current.addLayer({
+            id: 'stories-glow-inner',
+            type: 'circle',
+            source: 'stories',
+            paint: {
+              'circle-radius': [
+                'interpolate',
+                ['linear'],
+                ['coalesce', ['get', 'storyCount'], 1],
+                1, 5,
+                25, 8
+              ],
+              'circle-color': '#ffffff',
+              'circle-opacity': 0.4,
+              'circle-blur': 0.5,
+            },
+          })
 
           // Load data
           console.log('Map loaded, fetching globe data...')
@@ -925,22 +1068,79 @@ export default function Home() {
             entranceAnimationRef.current = requestAnimationFrame(animateEntrance)
           }
 
-          // Animate dot pulsing glow with different phase offsets per layer
+          // Animate dot pulsing glow with chaotic, per-dot phase offsets
+          // Each dot pulses at its own unique rhythm based on its phaseOffset property
           const animatePulse = () => {
             if (!map.current) return
             const t = Date.now() / 1000
 
-            // Animate each glow layer with different phase offset for chaotic effect
-            for (let i = 0; i < 3; i++) {
-              const layerId = `stories-glow-${i}`
-              if (!map.current.getLayer(layerId)) continue
+            // Helper to create a smooth wave using interpolation
+            // We sample multiple sine wave values and use Mapbox's interpolate
+            const createSmoothPulse = (baseValue: number, amplitude: number, frequency: number, phaseMultiplier: number) => {
+              // Calculate the phase-shifted time for each dot
+              // This creates a smooth sine-like wave using interpolation
+              const numSteps = 8 // More steps = smoother wave
+              const stops: any[] = []
 
-              const phaseOffset = (i * Math.PI * 2) / 3 // 0°, 120°, 240° offsets
-              const glowOpacity = 0.12 + (Math.sin(t * 1.2 + phaseOffset) + 1) * 0.08 // 0.12..0.28
-              const glowRadius = 3 + (Math.sin(t * 1.5 + phaseOffset) + 1) * 0.8 // 3..4.6
+              for (let i = 0; i <= numSteps; i++) {
+                const phaseValue = i / numSteps
+                const wavePhase = phaseValue * Math.PI * 2
+                // Calculate sine wave value for this phase point
+                const waveValue = Math.sin((t * frequency * Math.PI * 2) + wavePhase * phaseMultiplier) * 0.5 + 0.5
+                stops.push(phaseValue, baseValue + amplitude * waveValue)
+              }
 
-              map.current.setPaintProperty(layerId, 'circle-opacity', glowOpacity)
-              map.current.setPaintProperty(layerId, 'circle-radius', glowRadius)
+              return [
+                'interpolate',
+                ['linear'],
+                ['get', 'phaseOffset'], // Use phaseOffset (0-1) as the lookup value
+                ...stops
+              ]
+            }
+
+            // Outer glow - slow, large pulse with per-dot phase variation
+            if (map.current.getLayer('stories-glow-outer')) {
+              const outerOpacity = createSmoothPulse(0.08, 0.15, 0.4, 2.0)
+              map.current.setPaintProperty('stories-glow-outer', 'circle-opacity', outerOpacity)
+
+              const outerScaleBase = createSmoothPulse(1, 0.35, 0.4, 2.0)
+              map.current.setPaintProperty('stories-glow-outer', 'circle-radius', [
+                'interpolate',
+                ['linear'],
+                ['coalesce', ['get', 'storyCount'], 1],
+                1, ['*', 12, outerScaleBase],
+                25, ['*', 18, outerScaleBase]
+              ])
+            }
+
+            // Middle glow - medium speed with different frequency and phase multiplier
+            if (map.current.getLayer('stories-glow-middle')) {
+              const middleOpacity = createSmoothPulse(0.15, 0.2, 0.6, 2.5)
+              map.current.setPaintProperty('stories-glow-middle', 'circle-opacity', middleOpacity)
+
+              const middleScaleBase = createSmoothPulse(1, 0.3, 0.6, 2.5)
+              map.current.setPaintProperty('stories-glow-middle', 'circle-radius', [
+                'interpolate',
+                ['linear'],
+                ['coalesce', ['get', 'storyCount'], 1],
+                1, ['*', 8, middleScaleBase],
+                25, ['*', 12, middleScaleBase]
+              ])
+            }
+
+            // Inner glow - fast, bright pulse with even different timing
+            if (map.current.getLayer('stories-glow-inner')) {
+              const innerOpacity = createSmoothPulse(0.25, 0.25, 0.9, 3.0)
+              map.current.setPaintProperty('stories-glow-inner', 'circle-opacity', innerOpacity)
+
+              const innerScaleBase = createSmoothPulse(1, 0.4, 0.9, 3.0)
+              map.current.setPaintProperty('stories-glow-inner', 'circle-radius', [
+                'interpolate',
+                ['linear'],
+                ['coalesce', ['get', 'storyCount'], 1],
+                1, ['*', 5, innerScaleBase],
+                25, ['*', 8, innerScaleBase]
+              ])
             }
 
             pulseFrameRef.current = requestAnimationFrame(animatePulse)
@@ -1536,10 +1736,20 @@ function MapMarker({
                   <p className="text-[10px] text-gray-300 leading-relaxed line-clamp-3">
                     {displaySummary.substring(0, 150)}
                   </p>
-                  {primaryStory?.sourceName && (
-                    <p className="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
-                      {getSourceIcon(primaryStory.sourceName)}
-                      <span>{primaryStory.sourceName}</span>
+                  {(primaryStory?.sourceName || primaryStory?.created) && (
+                    <p className="text-[9px] text-gray-400 mt-1 flex items-center gap-1 flex-wrap">
+                      {primaryStory?.sourceName && (
+                        <>
+                          {getSourceIcon(primaryStory.sourceName)}
+                          <span>{primaryStory.sourceName}</span>
+                        </>
+                      )}
+                      {primaryStory?.sourceName && primaryStory?.created && (
+                        <span className="text-gray-500">•</span>
+                      )}
+                      {primaryStory?.created && (
+                        <span className="text-gray-500">{formatDate(primaryStory.created)}</span>
+                      )}
                     </p>
                   )}
                   {location.storyCount > 1 && (
@@ -1614,10 +1824,20 @@ function MapMarker({
                             {story.summary.substring(0, 120)}
                           </p>
                         )}
-                        {story.sourceName && (
-                          <p className="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
-                            {getSourceIcon(story.sourceName)}
-                            <span>{story.sourceName}</span>
+                        {(story.sourceName || story.created) && (
+                          <p className="text-[9px] text-gray-400 mt-1 flex items-center gap-1 flex-wrap">
+                            {story.sourceName && (
+                              <>
+                                {getSourceIcon(story.sourceName)}
+                                <span>{story.sourceName}</span>
+                              </>
+                            )}
+                            {story.sourceName && story.created && (
+                              <span className="text-gray-500">•</span>
+                            )}
+                            {story.created && (
+                              <span className="text-gray-500">{formatDate(story.created)}</span>
+                            )}
                           </p>
                         )}
                       </div>

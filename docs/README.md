@@ -11,11 +11,15 @@ Welcome to the Peripheral project documentation. This directory contains all pro
 
 ## Documentation Structure
 
+### Development & API
+- **[Architecture Overview](architecture-overview.md)** - System design and technical architecture
+- **[Frontend Development](frontend.md)** - React/Next.js development guidelines
+- **[API Reference](api-reference.md)** - Complete API endpoint documentation
+
 ### Setup & Deployment
 - **[Deployment Guide](deployment.md)** - Production deployment procedures
 - **[CI/CD Pipeline](ci-cd.md)** - GitHub Actions workflow documentation
 - **[Stripe Setup](setup-STRIPE_SETUP.md)** - Payment processing configuration
-- **[Frontend Development](frontend.md)** - Frontend development guidelines
 
 ### Architecture & Implementation
 Located in `architecture/` subdirectory:

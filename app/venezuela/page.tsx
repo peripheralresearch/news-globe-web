@@ -250,7 +250,7 @@ export default function VenezuelaArticlePage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-950 overflow-y-auto" style={{ height: 'auto' }}>
+    <div className="min-h-screen overflow-y-auto" style={{ height: 'auto', backgroundColor: '#0a0a0a' }}>
       {/* Article Container */}
       <div className="max-w-4xl mx-auto px-6 py-12">
 

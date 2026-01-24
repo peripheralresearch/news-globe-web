@@ -22,6 +22,8 @@ export async function PATCH(
 
     const supabase = createServiceClient()
 
+    console.log(`Updating position for video ${videoId}: lat=${latitude}, lng=${longitude}`)
+
     const { data, error } = await supabase
       .from('video')
       .update({
@@ -32,6 +34,8 @@ export async function PATCH(
       .eq('video_id', videoId)
       .select('video_id, latitude, longitude')
       .single()
+
+    console.log('Update result:', { data, error })
 
     if (error) {
       console.error('Video position update error:', error)

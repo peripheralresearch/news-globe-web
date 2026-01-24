@@ -24,11 +24,14 @@ export async function GET(
 
     const supabase = supabaseServer()
 
+    console.log(`[ICE API] Fetching videos for country: ${country}`)
     const { data, error } = await supabase
       .from('video')
       .select('*')
       .eq('country', country)
       .order('created_at', { ascending: false })
+
+    console.log(`[ICE API] Found ${data?.length || 0} videos, sample:`, data?.[0]?.video_id, data?.[0]?.latitude, data?.[0]?.longitude)
 
     if (error) {
       console.error('ICE videos API - Query error:', error)

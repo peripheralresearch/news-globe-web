@@ -41,6 +41,7 @@ export default function VenezuelaArticlePage() {
   const [currentVideo, setCurrentVideo] = useState<VideoMarker | null>(null)
   const [editMode, setEditMode] = useState(false)
   const [videoFitMode, setVideoFitMode] = useState<'contain' | 'cover'>('contain')
+  const [videoAspectRatio, setVideoAspectRatio] = useState<'portrait' | 'landscape' | 'square'>('portrait')
   const [pendingChanges, setPendingChanges] = useState<Map<string, [number, number]>>(new Map())
   const [isSaving, setIsSaving] = useState(false)
 
@@ -582,7 +583,7 @@ export default function VenezuelaArticlePage() {
             {/* Video Player - Overlay */}
             {currentVideo && !editMode && (
               <div
-                className="absolute bottom-4 right-4 w-[min(400px,calc(100%-2rem))] bg-black/90 rounded-lg overflow-hidden border border-white/20 shadow-2xl backdrop-blur-md transition-all duration-300 ease-out"
+                className="absolute bottom-4 right-4 w-[min(340px,calc(100%-2rem))] max-h-[calc(100vh-8rem)] bg-black/90 rounded-lg overflow-hidden border border-white/20 shadow-2xl backdrop-blur-md transition-all duration-300 ease-out"
                 style={{
                   animation: 'slideInFromBottom 0.3s ease-out'
                 }}
@@ -619,8 +620,12 @@ export default function VenezuelaArticlePage() {
                     </button>
                   </div>
 
-                  {/* Video content */}
-                  <div className="aspect-video bg-black flex items-center justify-center">
+                  {/* Video content - Portrait orientation (9:16) for vertical phone videos */}
+                  <div className={`bg-black flex items-center justify-center ${
+                    videoAspectRatio === 'portrait' ? 'aspect-[9/16]' :
+                    videoAspectRatio === 'square' ? 'aspect-square' :
+                    'aspect-video'
+                  }`}>
                     {currentVideo.videoUrl ? (
                       <video
                         ref={videoRef}
@@ -629,6 +634,22 @@ export default function VenezuelaArticlePage() {
                         autoPlay
                         className={`w-full h-full ${videoFitMode === 'contain' ? 'object-contain' : 'object-cover'}`}
                         style={{ backgroundColor: '#000' }}
+                        onLoadedMetadata={(e) => {
+                          const video = e.currentTarget
+                          const aspectRatio = video.videoWidth / video.videoHeight
+
+                          // Detect video orientation based on aspect ratio
+                          if (aspectRatio < 0.75) {
+                            // Portrait: width is less than 75% of height (e.g., 9:16 = 0.5625)
+                            setVideoAspectRatio('portrait')
+                          } else if (aspectRatio > 1.3) {
+                            // Landscape: width is more than 130% of height (e.g., 16:9 = 1.778)
+                            setVideoAspectRatio('landscape')
+                          } else {
+                            // Square or near-square (e.g., 1:1, 4:5)
+                            setVideoAspectRatio('square')
+                          }
+                        }}
                       />
                     ) : currentVideo.sourceUrl ? (
                       <a

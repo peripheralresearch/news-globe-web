@@ -301,7 +301,7 @@ export default function VenezuelaArticlePage() {
 
         map.current = new mapboxgl.Map({
           container: mapContainer.current!,
-          style: 'mapbox://styles/mapbox/satellite-streets-v12',
+          style: 'mapbox://styles/mapbox/satellite-v9',
           center: [-66.5, 6.5], // Center on Venezuela
           zoom: 4.2, // More zoomed out to see whole country
           minZoom: 4, // Minimum zoom level
@@ -313,6 +313,13 @@ export default function VenezuelaArticlePage() {
 
         map.current.on('load', () => {
           if (!map.current) return
+
+          // Hide all text layers to remove labels and POI markers
+          map.current.getStyle().layers.forEach((layer) => {
+            if (layer.type === 'symbol') {
+              map.current?.setLayerVisibility(layer.id, 'none')
+            }
+          })
 
           // Add Mapbox country boundaries source
           map.current.addSource('country-boundaries', {

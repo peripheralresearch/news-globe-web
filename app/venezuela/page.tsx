@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 
@@ -14,16 +14,78 @@ const VENEZUELA_BOUNDS: [[number, number], [number, number]] = [
 ]
 
 // Elastic padding factor (how much "stretch" to allow in degrees)
-const ELASTIC_PADDING = 0.7 // Further reduced for even tighter boundaries
+const ELASTIC_PADDING = 0.7
+
+interface VideoMarker {
+  id: string
+  title: string
+  channelName: string
+  date: string
+  coordinates: [number, number]
+  videoUrl: string | null
+  sourceUrl: string | null
+  description?: string
+}
 
 export default function VenezuelaArticlePage() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map())
   const isDragging = useRef(false)
   const isAnimating = useRef(false)
 
   const [isLoading, setIsLoading] = useState(true)
   const [mapError, setMapError] = useState<string | null>(null)
+  const [videos, setVideos] = useState<VideoMarker[]>([])
+  const [currentVideo, setCurrentVideo] = useState<VideoMarker | null>(null)
+  const [savingPosition, setSavingPosition] = useState<string | null>(null)
+  const [editMode, setEditMode] = useState(false)
+
+  // Load videos from API
+  const loadVideos = useCallback(async () => {
+    try {
+      const res = await fetch('/api/ice/videos/VE')
+      const data = await res.json()
+      if (data.videos) {
+        setVideos(data.videos)
+      }
+    } catch (error) {
+      console.error('Error loading videos:', error)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadVideos()
+  }, [loadVideos])
+
+  // Save video position to database
+  const saveVideoPosition = async (videoId: string, lng: number, lat: number) => {
+    setSavingPosition(videoId)
+    try {
+      const res = await fetch(`/api/video/${videoId}/position`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latitude: lat, longitude: lng })
+      })
+
+      if (res.ok) {
+        // Update local state
+        setVideos(prev => prev.map(v =>
+          v.id === videoId
+            ? { ...v, coordinates: [lng, lat] as [number, number] }
+            : v
+        ))
+        console.log(`✓ Position saved for ${videoId}`)
+      } else {
+        console.error('Failed to save position')
+      }
+    } catch (error) {
+      console.error('Error saving position:', error)
+    } finally {
+      setSavingPosition(null)
+    }
+  }
 
   // Override global overflow: hidden to enable page scrolling
   useEffect(() => {
@@ -95,6 +157,105 @@ export default function VenezuelaArticlePage() {
     isDragging.current = false
   }
 
+  // Handle video selection
+  const handleVideoClick = useCallback((video: VideoMarker) => {
+    if (editMode) return // Don't play video when in edit mode
+
+    setCurrentVideo(video)
+
+    // Fly to video location - zoom in close
+    if (map.current) {
+      map.current.flyTo({
+        center: video.coordinates,
+        zoom: 14,
+        duration: 1000
+      })
+    }
+  }, [editMode])
+
+  // Close video
+  const handleClose = useCallback(() => {
+    setCurrentVideo(null)
+
+    // Return to overview
+    if (map.current) {
+      map.current.flyTo({
+        center: [-66.5, 6.5],
+        zoom: 4.2,
+        duration: 1500
+      })
+    }
+  }, [])
+
+  // Add video markers to map
+  useEffect(() => {
+    if (!map.current || videos.length === 0) return
+
+    // Wait for map to be loaded
+    const addMarkers = () => {
+      if (!map.current) return
+
+      // Clear existing markers
+      markersRef.current.forEach(marker => marker.remove())
+      markersRef.current.clear()
+
+      videos.forEach(video => {
+        // Skip videos without coordinates
+        if (!video.coordinates || !video.coordinates[0] || !video.coordinates[1]) return
+
+        // Create custom marker element with pin image
+        const el = document.createElement('div')
+        el.className = 'video-marker'
+        el.dataset.videoId = video.id
+
+        // Create image element for pin
+        const img = document.createElement('img')
+        img.src = '/icons/pin.png'
+        img.style.cssText = `
+          width: 24px;
+          height: 32px;
+          cursor: pointer;
+          filter: ${currentVideo?.id === video.id ? 'brightness(0) saturate(100%) invert(35%) sepia(93%) saturate(1352%) hue-rotate(87deg) brightness(104%) contrast(97%)' : 'none'};
+          transition: filter 0.2s ease;
+        `
+
+        el.appendChild(img)
+
+        // Create marker with draggable option
+        const marker = new mapboxgl.Marker({
+          element: el,
+          draggable: editMode
+        })
+          .setLngLat(video.coordinates)
+          .addTo(map.current!)
+
+        // Click handler
+        el.addEventListener('click', (e) => {
+          e.stopPropagation()
+          if (!editMode) {
+            handleVideoClick(video)
+          }
+        })
+
+        // Drag end handler (only in edit mode)
+        if (editMode) {
+          marker.on('dragend', () => {
+            const lngLat = marker.getLngLat()
+            saveVideoPosition(video.id, lngLat.lng, lngLat.lat)
+          })
+        }
+
+        markersRef.current.set(video.id, marker)
+      })
+    }
+
+    if (map.current.isStyleLoaded()) {
+      addMarkers()
+    } else {
+      map.current.on('load', addMarkers)
+    }
+  }, [videos, handleVideoClick, editMode, currentVideo])
+
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current) return
@@ -116,7 +277,7 @@ export default function VenezuelaArticlePage() {
           center: [-66.5, 6.5], // Center on Venezuela
           zoom: 4.2, // More zoomed out to see whole country
           minZoom: 4, // Minimum zoom level
-          maxZoom: 10, // Maximum zoom level
+          maxZoom: 14, // Maximum zoom level
           attributionControl: false,
           cooperativeGestures: false, // Disabled to allow hover-based scroll zoom control
           scrollZoom: false, // Start with scroll zoom disabled
@@ -252,60 +413,60 @@ export default function VenezuelaArticlePage() {
   return (
     <div className="min-h-screen overflow-y-auto" style={{ height: 'auto', backgroundColor: '#0a0a0a' }}>
       {/* Article Container */}
-      <div className="max-w-4xl mx-auto px-6 py-12">
+      <div className="max-w-6xl mx-auto px-6 py-12">
 
         {/* Article Header */}
         <header className="mb-8">
-          <div className="flex items-center gap-4">
-            <h1 className="text-4xl font-bold text-white">
-              Venezuela
-            </h1>
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-              </span>
-              <span className="text-sm font-semibold text-green-500">LIVE</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h1 className="text-4xl font-bold text-white">
+                Venezuela
+              </h1>
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                <span className="text-sm font-semibold text-green-500">LIVE</span>
+              </div>
             </div>
+
+            {/* Edit Mode Toggle */}
+            <button
+              onClick={() => {
+                setEditMode(!editMode)
+                if (currentVideo) setCurrentVideo(null)
+              }}
+              className="text-sm text-gray-400 hover:text-white underline"
+            >
+              {editMode ? 'done' : 'edit'}
+            </button>
           </div>
+
+          {videos.length > 0 && (
+            <p className="text-gray-400 mt-2">
+              {videos.length} video{videos.length !== 1 ? 's' : ''} from the ground
+              {editMode && <span className="text-gray-500 ml-2">• drag to reposition</span>}
+            </p>
+          )}
         </header>
 
-        {/* Map Section */}
-        <div className="my-8">
-          <div className="relative w-full h-[500px] rounded-lg overflow-hidden shadow-lg">
+
+        {/* Map + Video Section */}
+        <div className="my-8 flex gap-4">
+          {/* Map */}
+          <div className={`relative h-[500px] rounded-lg overflow-hidden ${currentVideo && !editMode ? 'flex-1' : 'w-full'}`}>
             <div
               ref={mapContainer}
               className="absolute inset-0 w-full h-full"
             />
 
-            {/* Gradient overlays for fade effect on edges */}
-            {!isLoading && !mapError && (
-              <>
-                {/* Top gradient */}
-                <div className="absolute top-0 left-0 right-0 h-24 pointer-events-none"
-                  style={{
-                    background: 'linear-gradient(to bottom, #0a0a0a 0%, transparent 100%)'
-                  }}
-                />
-                {/* Bottom gradient */}
-                <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
-                  style={{
-                    background: 'linear-gradient(to top, #0a0a0a 0%, transparent 100%)'
-                  }}
-                />
-                {/* Left gradient */}
-                <div className="absolute top-0 left-0 bottom-0 w-24 pointer-events-none"
-                  style={{
-                    background: 'linear-gradient(to right, #0a0a0a 0%, transparent 100%)'
-                  }}
-                />
-                {/* Right gradient */}
-                <div className="absolute top-0 right-0 bottom-0 w-24 pointer-events-none"
-                  style={{
-                    background: 'linear-gradient(to left, #0a0a0a 0%, transparent 100%)'
-                  }}
-                />
-              </>
+            {/* Saving indicator */}
+            {savingPosition && (
+              <div className="absolute top-4 right-4 bg-black/80 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 z-20">
+                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                saving...
+              </div>
             )}
 
             {/* Loading state */}
@@ -323,7 +484,97 @@ export default function VenezuelaArticlePage() {
             )}
           </div>
 
+          {/* Video Player - Side Panel */}
+          {currentVideo && !editMode && (
+            <div className="w-[350px] h-[500px] bg-black rounded-lg overflow-hidden border border-white/10 flex flex-col">
+              <div className="relative flex-1 bg-black flex items-center justify-center">
+                <button
+                  onClick={handleClose}
+                  className="absolute top-2 right-2 z-10 text-white/60 hover:text-white text-sm"
+                >
+                  ✕
+                </button>
+                {currentVideo.videoUrl ? (
+                  <video
+                    ref={videoRef}
+                    src={currentVideo.videoUrl}
+                    controls
+                    autoPlay
+                    className="w-full h-full object-contain"
+                  />
+                ) : currentVideo.sourceUrl ? (
+                  <a
+                    href={currentVideo.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center gap-4 p-6 text-center"
+                  >
+                    <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-3xl">
+                      ▶
+                    </div>
+                    <span className="text-white text-sm">Open video source</span>
+                    <span className="text-gray-500 text-xs break-all">{currentVideo.sourceUrl}</span>
+                  </a>
+                ) : (
+                  <span className="text-gray-500 text-sm">No video available</span>
+                )}
+              </div>
+              <div className="p-3 border-t border-white/10">
+                <h3 className="text-white text-sm font-medium truncate">{currentVideo.title || 'Untitled'}</h3>
+                <p className="text-gray-500 text-xs mt-1">{currentVideo.channelName}</p>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Video List */}
+        {videos.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold text-white mb-4">Videos</h2>
+            <div className="grid gap-4">
+              {videos.map(video => (
+                <div
+                  key={video.id}
+                  onClick={() => !editMode && handleVideoClick(video)}
+                  className={`flex items-center gap-3 p-4 rounded-lg transition-colors border ${
+                    editMode
+                      ? 'bg-white/5 border-white/10 cursor-default'
+                      : currentVideo?.id === video.id
+                        ? 'bg-green-500/10 border-green-500/30'
+                        : 'bg-white/5 hover:bg-white/10 border-white/10 cursor-pointer'
+                  }`}
+                >
+                  <div className="flex-shrink-0">
+                    <img
+                      src="/icons/pin.png"
+                      alt="Location pin"
+                      className="w-5 h-6"
+                      style={{
+                        filter: currentVideo?.id === video.id
+                          ? 'brightness(0) saturate(100%) invert(35%) sepia(93%) saturate(1352%) hue-rotate(87deg) brightness(104%) contrast(97%)'
+                          : 'brightness(0) invert(1)'
+                      }}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-medium truncate">{video.title || 'Untitled Video'}</h3>
+                    <p className="text-gray-400 text-sm">
+                      {video.channelName} {video.date && `• ${new Date(video.date).toLocaleDateString()}`}
+                    </p>
+                    {editMode && video.coordinates && (
+                      <p className="text-gray-500 text-xs mt-1 font-mono">
+                        {video.coordinates[1].toFixed(4)}, {video.coordinates[0].toFixed(4)}
+                      </p>
+                    )}
+                  </div>
+                  {savingPosition === video.id && (
+                    <div className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

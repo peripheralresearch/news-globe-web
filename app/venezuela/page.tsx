@@ -41,7 +41,6 @@ export default function VenezuelaArticlePage() {
   const [currentVideo, setCurrentVideo] = useState<VideoMarker | null>(null)
   const [editMode, setEditMode] = useState(false)
   const [videoFitMode, setVideoFitMode] = useState<'contain' | 'cover'>('contain')
-  const [videoAspectRatio, setVideoAspectRatio] = useState<'portrait' | 'landscape' | 'square'>('portrait')
   const [pendingChanges, setPendingChanges] = useState<Map<string, [number, number]>>(new Map())
   const [isSaving, setIsSaving] = useState(false)
 
@@ -302,7 +301,7 @@ export default function VenezuelaArticlePage() {
 
         map.current = new mapboxgl.Map({
           container: mapContainer.current!,
-          style: 'mapbox://styles/mapbox/satellite-v9',
+          style: 'mapbox://styles/mapbox/satellite-streets-v12',
           center: [-66.5, 6.5], // Center on Venezuela
           zoom: 4.2, // More zoomed out to see whole country
           minZoom: 4, // Minimum zoom level
@@ -314,13 +313,6 @@ export default function VenezuelaArticlePage() {
 
         map.current.on('load', () => {
           if (!map.current) return
-
-          // Hide all text layers to remove labels and POI markers
-          map.current.getStyle().layers.forEach((layer) => {
-            if (layer.type === 'symbol') {
-              map.current?.setLayerVisibility(layer.id, 'none')
-            }
-          })
 
           // Add Mapbox country boundaries source
           map.current.addSource('country-boundaries', {
@@ -558,13 +550,25 @@ export default function VenezuelaArticlePage() {
 
 
         {/* Map + Video Section */}
-        <div className="my-8 relative">
-          {/* Map - Always Full Width */}
-          <div className="relative h-[500px] w-full rounded-lg overflow-hidden">
+        <div className="my-8 flex flex-col gap-4">
+          {/* Map */}
+          <div className="relative h-[500px] rounded-lg overflow-hidden">
             <div
               ref={mapContainer}
               className="absolute inset-0 w-full h-full"
             />
+
+            {/* Vignette Effect - Gradients on all edges */}
+            <div className="absolute inset-0 pointer-events-none">
+              {/* Top gradient */}
+              <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-[#0a0a0a] to-transparent" />
+              {/* Bottom gradient */}
+              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#0a0a0a] to-transparent" />
+              {/* Left gradient */}
+              <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-[#0a0a0a] to-transparent" />
+              {/* Right gradient */}
+              <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-[#0a0a0a] to-transparent" />
+            </div>
 
             {/* Loading state */}
             {isLoading && (
@@ -579,109 +583,59 @@ export default function VenezuelaArticlePage() {
                 <div className="text-red-500 text-sm">{mapError}</div>
               </div>
             )}
-
-            {/* Video Player - Overlay */}
-            {currentVideo && !editMode && (
-              <div
-                className="absolute bottom-4 right-4 w-[min(340px,calc(100%-2rem))] max-h-[calc(100vh-8rem)] bg-black/90 rounded-lg overflow-hidden border border-white/20 shadow-2xl backdrop-blur-md transition-all duration-300 ease-out"
-                style={{
-                  animation: 'slideInFromBottom 0.3s ease-out'
-                }}
-              >
-                <style jsx>{`
-                  @keyframes slideInFromBottom {
-                    from {
-                      opacity: 0;
-                      transform: translateY(20px);
-                    }
-                    to {
-                      opacity: 1;
-                      transform: translateY(0);
-                    }
-                  }
-                `}</style>
-
-                <div className="relative bg-black">
-                  {/* Control buttons */}
-                  <div className="absolute top-2 right-2 z-10 flex gap-2">
-                    <button
-                      onClick={() => setVideoFitMode(videoFitMode === 'contain' ? 'cover' : 'contain')}
-                      className="text-white/80 hover:text-white bg-black/50 hover:bg-black/70 backdrop-blur-sm text-xs px-2 py-1.5 rounded transition-colors"
-                      title={videoFitMode === 'contain' ? 'Fill screen' : 'Fit to screen'}
-                    >
-                      {videoFitMode === 'contain' ? '⤢' : '▣'}
-                    </button>
-                    <button
-                      onClick={handleClose}
-                      className="text-white/80 hover:text-white bg-black/50 hover:bg-black/70 backdrop-blur-sm px-2 py-1 rounded transition-colors"
-                      title="Close video player"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  {/* Video content - Portrait orientation (9:16) for vertical phone videos */}
-                  <div className={`bg-black flex items-center justify-center ${
-                    videoAspectRatio === 'portrait' ? 'aspect-[9/16]' :
-                    videoAspectRatio === 'square' ? 'aspect-square' :
-                    'aspect-video'
-                  }`}>
-                    {currentVideo.videoUrl ? (
-                      <video
-                        ref={videoRef}
-                        src={currentVideo.videoUrl}
-                        controls
-                        autoPlay
-                        className={`w-full h-full ${videoFitMode === 'contain' ? 'object-contain' : 'object-cover'}`}
-                        style={{ backgroundColor: '#000' }}
-                        onLoadedMetadata={(e) => {
-                          const video = e.currentTarget
-                          const aspectRatio = video.videoWidth / video.videoHeight
-
-                          // Detect video orientation based on aspect ratio
-                          if (aspectRatio < 0.75) {
-                            // Portrait: width is less than 75% of height (e.g., 9:16 = 0.5625)
-                            setVideoAspectRatio('portrait')
-                          } else if (aspectRatio > 1.3) {
-                            // Landscape: width is more than 130% of height (e.g., 16:9 = 1.778)
-                            setVideoAspectRatio('landscape')
-                          } else {
-                            // Square or near-square (e.g., 1:1, 4:5)
-                            setVideoAspectRatio('square')
-                          }
-                        }}
-                      />
-                    ) : currentVideo.sourceUrl ? (
-                      <a
-                        href={currentVideo.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex flex-col items-center gap-3 p-6 text-center w-full"
-                      >
-                        <div className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-2xl transition-colors">
-                          ▶
-                        </div>
-                        <span className="text-white text-sm">Open video source</span>
-                        <span className="text-gray-500 text-xs break-all line-clamp-2">{currentVideo.sourceUrl}</span>
-                      </a>
-                    ) : (
-                      <span className="text-gray-500 text-sm">No video available</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Video info footer */}
-                <div className="p-3 bg-black/50 backdrop-blur-sm border-t border-white/10">
-                  <h3 className="text-white text-sm font-medium truncate" title={currentVideo.title || 'Untitled'}>
-                    {currentVideo.title || 'Untitled'}
-                  </h3>
-                  <p className="text-gray-400 text-xs mt-1 truncate" title={currentVideo.channelName}>
-                    {currentVideo.channelName}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
+
+          {/* Video Player - Below Map */}
+          {currentVideo && !editMode && (
+            <div className="w-full bg-black rounded-lg overflow-hidden border border-white/10 flex flex-col">
+              <div className="relative h-[300px] bg-black flex items-center justify-center">
+                <div className="absolute top-2 right-2 z-10 flex gap-2">
+                  <button
+                    onClick={() => setVideoFitMode(videoFitMode === 'contain' ? 'cover' : 'contain')}
+                    className="text-white/60 hover:text-white text-xs px-2 py-1 bg-white/10 rounded"
+                    title={videoFitMode === 'contain' ? 'Fill screen' : 'Fit to screen'}
+                  >
+                    {videoFitMode === 'contain' ? '⤢' : '▣'}
+                  </button>
+                  <button
+                    onClick={handleClose}
+                    className="text-white/60 hover:text-white text-sm"
+                  >
+                    ✕
+                  </button>
+                </div>
+                {currentVideo.videoUrl ? (
+                  <video
+                    ref={videoRef}
+                    src={currentVideo.videoUrl}
+                    controls
+                    autoPlay
+                    className={`w-full h-full ${videoFitMode === 'contain' ? 'object-contain' : 'object-cover'}`}
+                    style={{ backgroundColor: '#000' }}
+                  />
+                ) : currentVideo.sourceUrl ? (
+                  <a
+                    href={currentVideo.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center gap-4 p-6 text-center"
+                  >
+                    <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-3xl">
+                      ▶
+                    </div>
+                    <span className="text-white text-sm">Open video source</span>
+                    <span className="text-gray-500 text-xs break-all">{currentVideo.sourceUrl}</span>
+                  </a>
+                ) : (
+                  <span className="text-gray-500 text-sm">No video available</span>
+                )}
+              </div>
+              <div className="p-3 border-t border-white/10">
+                <h3 className="text-white text-sm font-medium truncate">{currentVideo.title || 'Untitled'}</h3>
+                <p className="text-gray-500 text-xs mt-1">{currentVideo.channelName}</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Video List */}

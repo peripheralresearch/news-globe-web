@@ -118,7 +118,8 @@ export default function VenezuelaArticlePage() {
           minZoom: 4, // Minimum zoom level
           maxZoom: 10, // Maximum zoom level
           attributionControl: false,
-          cooperativeGestures: true, // Require Ctrl/Cmd + scroll to zoom, allowing normal page scrolling
+          cooperativeGestures: false, // Disabled to allow hover-based scroll zoom control
+          scrollZoom: false, // Start with scroll zoom disabled
         })
 
         map.current.on('load', () => {
@@ -160,20 +161,32 @@ export default function VenezuelaArticlePage() {
           setIsLoading(false)
         })
 
-        // Enable scroll zoom when mouse is over the map
-        const mapElement = mapContainer.current
-        if (mapElement) {
-          mapElement.addEventListener('mouseenter', () => {
-            if (map.current) {
+        // Enable scroll zoom when mouse is over the map, disable when leaving
+        if (mapContainer.current) {
+          const enableScrollZoom = () => {
+            if (map.current && !map.current.scrollZoom.isEnabled()) {
               map.current.scrollZoom.enable()
             }
-          })
+          }
 
-          mapElement.addEventListener('mouseleave', () => {
-            if (map.current) {
+          const disableScrollZoom = () => {
+            if (map.current && map.current.scrollZoom.isEnabled()) {
               map.current.scrollZoom.disable()
             }
-          })
+          }
+
+          mapContainer.current.addEventListener('mouseenter', enableScrollZoom)
+          mapContainer.current.addEventListener('mouseleave', disableScrollZoom)
+
+          // Cleanup event listeners on map removal
+          const originalRemove = map.current?.remove.bind(map.current)
+          if (map.current) {
+            map.current.remove = function() {
+              mapContainer.current?.removeEventListener('mouseenter', enableScrollZoom)
+              mapContainer.current?.removeEventListener('mouseleave', disableScrollZoom)
+              return originalRemove?.()
+            }
+          }
         }
 
         // Rubber-band effect event handlers

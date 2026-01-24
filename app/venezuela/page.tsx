@@ -165,10 +165,30 @@ export default function VenezuelaArticlePage() {
     setCurrentVideo(video)
 
     // Fly to video location - zoom in close
+    // Adjust center to account for 350px video panel on the right
     if (map.current) {
+      const PANEL_WIDTH = 350 // Width of video panel in pixels
+      const mapWidth = map.current.getContainer().offsetWidth
+
+      // Calculate the center of the visible map area (excluding the panel)
+      // The visible area is: mapWidth - PANEL_WIDTH
+      // We want to shift the center left by: PANEL_WIDTH / 2 pixels
+      const pixelOffset = PANEL_WIDTH / 2
+
+      // Convert pixel offset to map coordinates at the target zoom level
+      const targetZoom = 14
+      const metersPerPixel = (40075016.686 * Math.abs(Math.cos(video.coordinates[1] * Math.PI / 180))) / Math.pow(2, targetZoom + 8)
+      const lngOffset = (pixelOffset * metersPerPixel) / (111320 * Math.cos(video.coordinates[1] * Math.PI / 180))
+
+      // Adjust the center point to the left
+      const adjustedCenter: [number, number] = [
+        video.coordinates[0] - lngOffset,
+        video.coordinates[1]
+      ]
+
       map.current.flyTo({
-        center: video.coordinates,
-        zoom: 14,
+        center: adjustedCenter,
+        zoom: targetZoom,
         duration: 1000
       })
     }
@@ -178,7 +198,7 @@ export default function VenezuelaArticlePage() {
   const handleClose = useCallback(() => {
     setCurrentVideo(null)
 
-    // Return to overview
+    // Return to overview - centered normally (no panel offset)
     if (map.current) {
       map.current.flyTo({
         center: [-66.5, 6.5],

@@ -272,7 +272,7 @@ export default function VenezuelaArticlePage() {
 
         {/* Map Section */}
         <div className="my-8">
-          <div className="relative w-full h-[500px] rounded-lg overflow-hidden shadow-lg border border-gray-800">
+          <div className="relative w-full h-[500px] rounded-lg overflow-hidden shadow-lg">
             <div
               ref={mapContainer}
               className="absolute inset-0 w-full h-full"

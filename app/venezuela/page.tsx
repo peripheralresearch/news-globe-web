@@ -557,14 +557,13 @@ export default function VenezuelaArticlePage() {
 
 
         {/* Map + Video Section */}
-        <div className="my-8 flex gap-4">
-          {/* Map */}
-          <div className={`relative h-[500px] rounded-lg overflow-hidden ${currentVideo && !editMode ? 'flex-1' : 'w-full'}`}>
+        <div className="my-8 relative">
+          {/* Map - Always Full Width */}
+          <div className="relative h-[500px] w-full rounded-lg overflow-hidden">
             <div
               ref={mapContainer}
               className="absolute inset-0 w-full h-full"
             />
-
 
             {/* Loading state */}
             {isLoading && (
@@ -579,59 +578,89 @@ export default function VenezuelaArticlePage() {
                 <div className="text-red-500 text-sm">{mapError}</div>
               </div>
             )}
-          </div>
 
-          {/* Video Player - Side Panel */}
-          {currentVideo && !editMode && (
-            <div className="w-[350px] h-[500px] bg-black rounded-lg overflow-hidden border border-white/10 flex flex-col">
-              <div className="relative flex-1 bg-black flex items-center justify-center">
-                <div className="absolute top-2 right-2 z-10 flex gap-2">
-                  <button
-                    onClick={() => setVideoFitMode(videoFitMode === 'contain' ? 'cover' : 'contain')}
-                    className="text-white/60 hover:text-white text-xs px-2 py-1 bg-white/10 rounded"
-                    title={videoFitMode === 'contain' ? 'Fill screen' : 'Fit to screen'}
-                  >
-                    {videoFitMode === 'contain' ? '⤢' : '▣'}
-                  </button>
-                  <button
-                    onClick={handleClose}
-                    className="text-white/60 hover:text-white text-sm"
-                  >
-                    ✕
-                  </button>
+            {/* Video Player - Overlay */}
+            {currentVideo && !editMode && (
+              <div
+                className="absolute bottom-4 right-4 w-[min(400px,calc(100%-2rem))] bg-black/90 rounded-lg overflow-hidden border border-white/20 shadow-2xl backdrop-blur-md transition-all duration-300 ease-out"
+                style={{
+                  animation: 'slideInFromBottom 0.3s ease-out'
+                }}
+              >
+                <style jsx>{`
+                  @keyframes slideInFromBottom {
+                    from {
+                      opacity: 0;
+                      transform: translateY(20px);
+                    }
+                    to {
+                      opacity: 1;
+                      transform: translateY(0);
+                    }
+                  }
+                `}</style>
+
+                <div className="relative bg-black">
+                  {/* Control buttons */}
+                  <div className="absolute top-2 right-2 z-10 flex gap-2">
+                    <button
+                      onClick={() => setVideoFitMode(videoFitMode === 'contain' ? 'cover' : 'contain')}
+                      className="text-white/80 hover:text-white bg-black/50 hover:bg-black/70 backdrop-blur-sm text-xs px-2 py-1.5 rounded transition-colors"
+                      title={videoFitMode === 'contain' ? 'Fill screen' : 'Fit to screen'}
+                    >
+                      {videoFitMode === 'contain' ? '⤢' : '▣'}
+                    </button>
+                    <button
+                      onClick={handleClose}
+                      className="text-white/80 hover:text-white bg-black/50 hover:bg-black/70 backdrop-blur-sm px-2 py-1 rounded transition-colors"
+                      title="Close video player"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* Video content */}
+                  <div className="aspect-video bg-black flex items-center justify-center">
+                    {currentVideo.videoUrl ? (
+                      <video
+                        ref={videoRef}
+                        src={currentVideo.videoUrl}
+                        controls
+                        autoPlay
+                        className={`w-full h-full ${videoFitMode === 'contain' ? 'object-contain' : 'object-cover'}`}
+                        style={{ backgroundColor: '#000' }}
+                      />
+                    ) : currentVideo.sourceUrl ? (
+                      <a
+                        href={currentVideo.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex flex-col items-center gap-3 p-6 text-center w-full"
+                      >
+                        <div className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-2xl transition-colors">
+                          ▶
+                        </div>
+                        <span className="text-white text-sm">Open video source</span>
+                        <span className="text-gray-500 text-xs break-all line-clamp-2">{currentVideo.sourceUrl}</span>
+                      </a>
+                    ) : (
+                      <span className="text-gray-500 text-sm">No video available</span>
+                    )}
+                  </div>
                 </div>
-                {currentVideo.videoUrl ? (
-                  <video
-                    ref={videoRef}
-                    src={currentVideo.videoUrl}
-                    controls
-                    autoPlay
-                    className={`w-full h-full ${videoFitMode === 'contain' ? 'object-contain' : 'object-cover'}`}
-                    style={{ backgroundColor: '#000' }}
-                  />
-                ) : currentVideo.sourceUrl ? (
-                  <a
-                    href={currentVideo.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex flex-col items-center gap-4 p-6 text-center"
-                  >
-                    <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-3xl">
-                      ▶
-                    </div>
-                    <span className="text-white text-sm">Open video source</span>
-                    <span className="text-gray-500 text-xs break-all">{currentVideo.sourceUrl}</span>
-                  </a>
-                ) : (
-                  <span className="text-gray-500 text-sm">No video available</span>
-                )}
+
+                {/* Video info footer */}
+                <div className="p-3 bg-black/50 backdrop-blur-sm border-t border-white/10">
+                  <h3 className="text-white text-sm font-medium truncate" title={currentVideo.title || 'Untitled'}>
+                    {currentVideo.title || 'Untitled'}
+                  </h3>
+                  <p className="text-gray-400 text-xs mt-1 truncate" title={currentVideo.channelName}>
+                    {currentVideo.channelName}
+                  </p>
+                </div>
               </div>
-              <div className="p-3 border-t border-white/10">
-                <h3 className="text-white text-sm font-medium truncate">{currentVideo.title || 'Untitled'}</h3>
-                <p className="text-gray-500 text-xs mt-1">{currentVideo.channelName}</p>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Video List */}

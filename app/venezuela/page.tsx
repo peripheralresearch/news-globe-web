@@ -39,9 +39,10 @@ export default function VenezuelaArticlePage() {
   const [mapError, setMapError] = useState<string | null>(null)
   const [videos, setVideos] = useState<VideoMarker[]>([])
   const [currentVideo, setCurrentVideo] = useState<VideoMarker | null>(null)
-  const [savingPosition, setSavingPosition] = useState<string | null>(null)
   const [editMode, setEditMode] = useState(false)
   const [videoFitMode, setVideoFitMode] = useState<'contain' | 'cover'>('contain')
+  const [pendingChanges, setPendingChanges] = useState<Map<string, [number, number]>>(new Map())
+  const [isSaving, setIsSaving] = useState(false)
 
   // Load videos from API
   const loadVideos = useCallback(async () => {
@@ -60,32 +61,45 @@ export default function VenezuelaArticlePage() {
     loadVideos()
   }, [loadVideos])
 
-  // Save video position to database
-  const saveVideoPosition = async (videoId: string, lng: number, lat: number) => {
-    setSavingPosition(videoId)
-    try {
-      const res = await fetch(`/api/video/${videoId}/position`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitude: lat, longitude: lng })
-      })
+  // Save all pending changes to database
+  const saveAllChanges = async () => {
+    if (pendingChanges.size === 0) return
 
-      if (res.ok) {
-        // Update local state
-        setVideos(prev => prev.map(v =>
-          v.id === videoId
-            ? { ...v, coordinates: [lng, lat] as [number, number] }
-            : v
-        ))
-        console.log(`✓ Position saved for ${videoId}`)
-      } else {
-        console.error('Failed to save position')
+    setIsSaving(true)
+    const results = []
+
+    for (const [videoId, [lng, lat]] of pendingChanges) {
+      try {
+        const res = await fetch(`/api/video/${videoId}/position`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ latitude: lat, longitude: lng })
+        })
+
+        if (res.ok) {
+          results.push({ videoId, success: true })
+          // Update local state
+          setVideos(prev => prev.map(v =>
+            v.id === videoId
+              ? { ...v, coordinates: [lng, lat] as [number, number] }
+              : v
+          ))
+        } else {
+          results.push({ videoId, success: false })
+          console.error(`Failed to save position for ${videoId}`)
+        }
+      } catch (error) {
+        results.push({ videoId, success: false })
+        console.error(`Error saving position for ${videoId}:`, error)
       }
-    } catch (error) {
-      console.error('Error saving position:', error)
-    } finally {
-      setSavingPosition(null)
     }
+
+    // Clear pending changes after saving
+    setPendingChanges(new Map())
+    setIsSaving(false)
+
+    const successCount = results.filter(r => r.success).length
+    console.log(`Saved ${successCount}/${results.length} position changes`)
   }
 
   // Override global overflow: hidden to enable page scrolling
@@ -165,30 +179,10 @@ export default function VenezuelaArticlePage() {
     setCurrentVideo(video)
 
     // Fly to video location - zoom in close
-    // Adjust center to account for 350px video panel on the right
     if (map.current) {
-      const PANEL_WIDTH = 350 // Width of video panel in pixels
-      const mapWidth = map.current.getContainer().offsetWidth
-
-      // Calculate the center of the visible map area (excluding the panel)
-      // The visible area is: mapWidth - PANEL_WIDTH
-      // We want to shift the center left by: PANEL_WIDTH / 2 pixels
-      const pixelOffset = PANEL_WIDTH / 2
-
-      // Convert pixel offset to map coordinates at the target zoom level
-      const targetZoom = 14
-      const metersPerPixel = (40075016.686 * Math.abs(Math.cos(video.coordinates[1] * Math.PI / 180))) / Math.pow(2, targetZoom + 8)
-      const lngOffset = (pixelOffset * metersPerPixel) / (111320 * Math.cos(video.coordinates[1] * Math.PI / 180))
-
-      // Adjust the center point to the left
-      const adjustedCenter: [number, number] = [
-        video.coordinates[0] - lngOffset,
-        video.coordinates[1]
-      ]
-
       map.current.flyTo({
-        center: adjustedCenter,
-        zoom: targetZoom,
+        center: video.coordinates,
+        zoom: 14,
         duration: 1000
       })
     }
@@ -198,7 +192,7 @@ export default function VenezuelaArticlePage() {
   const handleClose = useCallback(() => {
     setCurrentVideo(null)
 
-    // Return to overview - centered normally (no panel offset)
+    // Return to overview
     if (map.current) {
       map.current.flyTo({
         center: [-66.5, 6.5],
@@ -262,7 +256,8 @@ export default function VenezuelaArticlePage() {
         if (editMode) {
           marker.on('dragend', () => {
             const lngLat = marker.getLngLat()
-            saveVideoPosition(video.id, lngLat.lng, lngLat.lat)
+            // Track the change as pending
+            setPendingChanges(prev => new Map(prev).set(video.id, [lngLat.lng, lngLat.lat]))
           })
         }
 
@@ -275,7 +270,7 @@ export default function VenezuelaArticlePage() {
     } else {
       map.current.on('load', addMarkers)
     }
-  }, [videos, handleVideoClick, editMode, currentVideo])
+  }, [videos, handleVideoClick, editMode, currentVideo, setPendingChanges])
 
   // Initialize map
   useEffect(() => {
@@ -452,22 +447,91 @@ export default function VenezuelaArticlePage() {
               </div>
             </div>
 
-            {/* Edit Mode Toggle */}
-            <button
-              onClick={() => {
-                setEditMode(!editMode)
-                if (currentVideo) setCurrentVideo(null)
-              }}
-              className="text-sm text-gray-400 hover:text-white underline"
-            >
-              {editMode ? 'done' : 'edit'}
-            </button>
+            {/* Edit Mode Controls */}
+            <div className="flex gap-2">
+              {editMode && pendingChanges.size > 0 && (
+                <button
+                  onClick={saveAllChanges}
+                  disabled={isSaving}
+                  className={`px-3 py-1.5 rounded flex items-center gap-2 text-sm transition-colors ${
+                    isSaving
+                      ? 'bg-green-500/20 text-green-400 cursor-wait'
+                      : 'bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/30'
+                  }`}
+                  title="Save all position changes"
+                >
+                  {isSaving ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      {/* Save icon */}
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+                        <polyline points="17 21 17 13 7 13 7 21" />
+                        <polyline points="7 3 7 8 15 8" />
+                      </svg>
+                      <span>Save {pendingChanges.size} change{pendingChanges.size !== 1 ? 's' : ''}</span>
+                    </>
+                  )}
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  if (editMode && pendingChanges.size > 0) {
+                    if (confirm('You have unsaved changes. Discard them?')) {
+                      setPendingChanges(new Map())
+                      setEditMode(false)
+                      if (currentVideo) setCurrentVideo(null)
+                    }
+                  } else {
+                    setEditMode(!editMode)
+                    if (currentVideo) setCurrentVideo(null)
+                  }
+                }}
+                className={`px-3 py-1.5 rounded flex items-center gap-2 text-sm transition-colors ${
+                  editMode
+                    ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+                    : 'bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200'
+                }`}
+                title={editMode ? 'Exit edit mode' : 'Edit pin positions'}
+              >
+                {editMode ? (
+                  <>
+                    {/* Close icon */}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                    <span>Cancel</span>
+                  </>
+                ) : (
+                  <>
+                    {/* Edit icon */}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    <span>Edit</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {videos.length > 0 && (
             <p className="text-gray-400 mt-2">
               {videos.length} video{videos.length !== 1 ? 's' : ''} from the ground
-              {editMode && <span className="text-gray-500 ml-2">• drag to reposition</span>}
+              {editMode && (
+                <span className="text-gray-500 ml-2">
+                  • drag pins to reposition
+                  {pendingChanges.size > 0 && (
+                    <span className="text-yellow-500"> ({pendingChanges.size} unsaved)</span>
+                  )}
+                </span>
+              )}
             </p>
           )}
         </header>
@@ -482,13 +546,6 @@ export default function VenezuelaArticlePage() {
               className="absolute inset-0 w-full h-full"
             />
 
-            {/* Saving indicator */}
-            {savingPosition && (
-              <div className="absolute top-4 right-4 bg-black/80 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 z-20">
-                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                saving...
-              </div>
-            )}
 
             {/* Loading state */}
             {isLoading && (
@@ -594,12 +651,15 @@ export default function VenezuelaArticlePage() {
                     </p>
                     {editMode && video.coordinates && (
                       <p className="text-gray-500 text-xs mt-1 font-mono">
-                        {video.coordinates[1].toFixed(4)}, {video.coordinates[0].toFixed(4)}
+                        {pendingChanges.has(video.id)
+                          ? `${pendingChanges.get(video.id)![1].toFixed(4)}, ${pendingChanges.get(video.id)![0].toFixed(4)} (unsaved)`
+                          : `${video.coordinates[1].toFixed(4)}, ${video.coordinates[0].toFixed(4)}`
+                        }
                       </p>
                     )}
                   </div>
-                  {savingPosition === video.id && (
-                    <div className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                  {pendingChanges.has(video.id) && (
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full" title="Position changed" />
                   )}
                 </div>
               ))}

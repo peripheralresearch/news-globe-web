@@ -41,6 +41,7 @@ export default function VenezuelaArticlePage() {
   const [currentVideo, setCurrentVideo] = useState<VideoMarker | null>(null)
   const [savingPosition, setSavingPosition] = useState<string | null>(null)
   const [editMode, setEditMode] = useState(false)
+  const [videoFitMode, setVideoFitMode] = useState<'contain' | 'cover'>('contain')
 
   // Load videos from API
   const loadVideos = useCallback(async () => {
@@ -488,19 +489,29 @@ export default function VenezuelaArticlePage() {
           {currentVideo && !editMode && (
             <div className="w-[350px] h-[500px] bg-black rounded-lg overflow-hidden border border-white/10 flex flex-col">
               <div className="relative flex-1 bg-black flex items-center justify-center">
-                <button
-                  onClick={handleClose}
-                  className="absolute top-2 right-2 z-10 text-white/60 hover:text-white text-sm"
-                >
-                  ✕
-                </button>
+                <div className="absolute top-2 right-2 z-10 flex gap-2">
+                  <button
+                    onClick={() => setVideoFitMode(videoFitMode === 'contain' ? 'cover' : 'contain')}
+                    className="text-white/60 hover:text-white text-xs px-2 py-1 bg-white/10 rounded"
+                    title={videoFitMode === 'contain' ? 'Fill screen' : 'Fit to screen'}
+                  >
+                    {videoFitMode === 'contain' ? '⤢' : '▣'}
+                  </button>
+                  <button
+                    onClick={handleClose}
+                    className="text-white/60 hover:text-white text-sm"
+                  >
+                    ✕
+                  </button>
+                </div>
                 {currentVideo.videoUrl ? (
                   <video
                     ref={videoRef}
                     src={currentVideo.videoUrl}
                     controls
                     autoPlay
-                    className="w-full h-full object-contain"
+                    className={`w-full h-full ${videoFitMode === 'contain' ? 'object-contain' : 'object-cover'}`}
+                    style={{ backgroundColor: '#000' }}
                   />
                 ) : currentVideo.sourceUrl ? (
                   <a

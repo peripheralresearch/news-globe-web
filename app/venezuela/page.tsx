@@ -84,9 +84,10 @@ export default function VenezuelaArticlePage() {
               ? { ...v, coordinates: [lng, lat] as [number, number] }
               : v
           ))
+          console.log(`✅ Saved position for video ${videoId}: [${lng.toFixed(4)}, ${lat.toFixed(4)}]`)
         } else {
           results.push({ videoId, success: false })
-          console.error(`Failed to save position for ${videoId}`)
+          console.error(`❌ Failed to save position for ${videoId}`, await res.text())
         }
       } catch (error) {
         results.push({ videoId, success: false })
@@ -258,6 +259,7 @@ export default function VenezuelaArticlePage() {
             const lngLat = marker.getLngLat()
             // Track the change as pending
             setPendingChanges(prev => new Map(prev).set(video.id, [lngLat.lng, lngLat.lat]))
+            console.log(`📍 Pin dragged - Video ${video.id} new position: [${lngLat.lng.toFixed(4)}, ${lngLat.lat.toFixed(4)}] (pending save)`)
           })
         }
 

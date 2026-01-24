@@ -278,6 +278,36 @@ export default function VenezuelaArticlePage() {
               className="absolute inset-0 w-full h-full"
             />
 
+            {/* Gradient overlays for fade effect on edges */}
+            {!isLoading && !mapError && (
+              <>
+                {/* Top gradient */}
+                <div className="absolute top-0 left-0 right-0 h-24 pointer-events-none"
+                  style={{
+                    background: 'linear-gradient(to bottom, #0a0a0a 0%, transparent 100%)'
+                  }}
+                />
+                {/* Bottom gradient */}
+                <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
+                  style={{
+                    background: 'linear-gradient(to top, #0a0a0a 0%, transparent 100%)'
+                  }}
+                />
+                {/* Left gradient */}
+                <div className="absolute top-0 left-0 bottom-0 w-24 pointer-events-none"
+                  style={{
+                    background: 'linear-gradient(to right, #0a0a0a 0%, transparent 100%)'
+                  }}
+                />
+                {/* Right gradient */}
+                <div className="absolute top-0 right-0 bottom-0 w-24 pointer-events-none"
+                  style={{
+                    background: 'linear-gradient(to left, #0a0a0a 0%, transparent 100%)'
+                  }}
+                />
+              </>
+            )}
+
             {/* Loading state */}
             {isLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-900">

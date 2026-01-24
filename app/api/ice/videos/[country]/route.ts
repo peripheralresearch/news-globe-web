@@ -31,7 +31,18 @@ export async function GET(
       .eq('country', country)
       .order('created_at', { ascending: false })
 
-    console.log(`[ICE API] Found ${data?.length || 0} videos, sample:`, data?.[0]?.video_id, data?.[0]?.latitude, data?.[0]?.longitude)
+    console.log(`[ICE API] Found ${data?.length || 0} videos`)
+
+    // Log first 3 videos with their positions for debugging
+    if (data && data.length > 0) {
+      const sampleVideos = data.slice(0, 3).map(v => ({
+        id: v.video_id,
+        lat: v.latitude,
+        lng: v.longitude,
+        updated_at: v.updated_at
+      }))
+      console.log('[ICE API] Sample videos:', JSON.stringify(sampleVideos, null, 2))
+    }
 
     if (error) {
       console.error('ICE videos API - Query error:', error)
@@ -63,7 +74,11 @@ export async function GET(
       { videos },
       {
         headers: {
-          'Cache-Control': 'public, max-age=60, s-maxage=120',
+          // Disable caching to ensure position updates are immediately visible
+          // Users need to see updates immediately after dragging pins
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       }
     )

@@ -47,7 +47,13 @@ export default function VenezuelaArticlePage() {
   // Load videos from API
   const loadVideos = useCallback(async () => {
     try {
-      const res = await fetch('/api/ice/videos/VE')
+      // Add cache-busting to ensure fresh data after position updates
+      const res = await fetch('/api/ice/videos/VE', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      })
       const data = await res.json()
       if (data.videos) {
         setVideos(data.videos)
@@ -101,6 +107,10 @@ export default function VenezuelaArticlePage() {
 
     const successCount = results.filter(r => r.success).length
     console.log(`Saved ${successCount}/${results.length} position changes`)
+
+    // Refetch videos to ensure we have the latest data from the database
+    // This helps catch any discrepancies and ensures consistency
+    await loadVideos()
   }
 
   // Override global overflow: hidden to enable page scrolling

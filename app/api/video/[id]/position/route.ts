@@ -24,6 +24,35 @@ export async function PATCH(
 
     console.log(`Updating position for video ${videoId}: lat=${latitude}, lng=${longitude}`)
 
+    // First check if the video exists
+    const { data: existing, error: checkError } = await supabase
+      .from('video')
+      .select('video_id, latitude, longitude')
+      .eq('video_id', videoId)
+
+    if (checkError) {
+      console.error('Error checking video existence:', checkError)
+      return NextResponse.json(
+        { error: checkError.message },
+        { status: 500 }
+      )
+    }
+
+    if (!existing || existing.length === 0) {
+      console.error(`Video ${videoId} not found in database`)
+      return NextResponse.json(
+        { error: 'Video not found' },
+        { status: 404 }
+      )
+    }
+
+    if (existing.length > 1) {
+      console.error(`Multiple records found for video ${videoId}. Count: ${existing.length}`)
+      // Still proceed with update but log the issue
+    }
+
+    console.log(`Before update - Video ${videoId}: lat=${existing[0].latitude}, lng=${existing[0].longitude}`)
+
     const { data, error } = await supabase
       .from('video')
       .update({
@@ -43,6 +72,19 @@ export async function PATCH(
         { error: error.message },
         { status: 500 }
       )
+    }
+
+    // Verify the update was applied
+    const { data: verification } = await supabase
+      .from('video')
+      .select('video_id, latitude, longitude')
+      .eq('video_id', videoId)
+      .single()
+
+    console.log(`After update verification - Video ${videoId}: lat=${verification?.latitude}, lng=${verification?.longitude}`)
+
+    if (verification && (verification.latitude !== latitude || verification.longitude !== longitude)) {
+      console.error(`WARNING: Verification failed! Expected lat=${latitude}, lng=${longitude}, but got lat=${verification.latitude}, lng=${verification.longitude}`)
     }
 
     return NextResponse.json({

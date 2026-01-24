@@ -237,29 +237,29 @@ export default function VenezuelaArticlePage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-white overflow-y-auto" style={{ height: 'auto' }}>
+    <div className="min-h-screen bg-gray-950 overflow-y-auto" style={{ height: 'auto' }}>
       {/* Article Container */}
       <div className="max-w-4xl mx-auto px-6 py-12">
 
         {/* Article Header */}
         <header className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-4xl font-bold text-white mb-4">
             Venezuela
           </h1>
-          <div className="flex items-center gap-4 text-sm text-gray-600">
+          <div className="flex items-center gap-4 text-sm text-gray-400">
             <div className="flex items-center gap-2">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
               </span>
-              <span className="font-semibold text-green-600">LIVE</span>
+              <span className="font-semibold text-green-500">LIVE</span>
             </div>
           </div>
         </header>
 
         {/* Map Section */}
         <div className="my-8">
-          <div className="relative w-full h-[500px] rounded-lg overflow-hidden shadow-lg border border-gray-200">
+          <div className="relative w-full h-[500px] rounded-lg overflow-hidden shadow-lg border border-gray-800">
             <div
               ref={mapContainer}
               className="absolute inset-0 w-full h-full"
@@ -267,15 +267,15 @@ export default function VenezuelaArticlePage() {
 
             {/* Loading state */}
             {isLoading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                <div className="text-gray-600 text-sm">Loading map...</div>
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+                <div className="text-gray-400 text-sm">Loading map...</div>
               </div>
             )}
 
             {/* Error state */}
             {mapError && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                <div className="text-red-600 text-sm">{mapError}</div>
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+                <div className="text-red-500 text-sm">{mapError}</div>
               </div>
             )}
           </div>

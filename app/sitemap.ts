@@ -13,8 +13,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: `${baseUrl}/venezuela`,
       lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.8,
+      changeFrequency: 'hourly',  // Live hub - frequent updates
+      priority: 0.95,  // Highest priority for live coverage
     },
     {
       url: `${baseUrl}/stories`,

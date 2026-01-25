@@ -236,7 +236,8 @@ export default function VenezuelaArticlePage() {
 
         // Create image element for pin
         const img = document.createElement('img')
-        img.src = '/icons/pin.png'
+        // Use yellow pin if this video is currently selected, otherwise use red pin
+        img.src = currentVideo?.id === video.id ? '/icons/pin_yellow.png' : '/icons/pin.png'
         img.style.cssText = `
           width: 24px;
           height: 32px;
@@ -658,7 +659,7 @@ export default function VenezuelaArticlePage() {
                 >
                   <div className="flex-shrink-0">
                     <img
-                      src="/icons/pin.png"
+                      src={currentVideo?.id === video.id ? '/icons/pin_yellow.png' : '/icons/pin.png'}
                       alt="Location pin"
                       className="w-5 h-6"
                     />

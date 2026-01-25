@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest"
+    "test": "jest",
+    "convert-pin": "node scripts/convert-pin-to-yellow.js"
   },
   "dependencies": {
     "@stripe/stripe-js": "^8.3.0",

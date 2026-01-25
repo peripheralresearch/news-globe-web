@@ -241,8 +241,6 @@ export default function VenezuelaArticlePage() {
           width: 24px;
           height: 32px;
           cursor: pointer;
-          filter: ${currentVideo?.id === video.id ? 'brightness(0) saturate(100%) invert(35%) sepia(93%) saturate(1352%) hue-rotate(87deg) brightness(104%) contrast(97%)' : 'none'};
-          transition: filter 0.2s ease;
         `
 
         el.appendChild(img)
@@ -550,13 +548,68 @@ export default function VenezuelaArticlePage() {
 
 
         {/* Map + Video Section */}
-        <div className="my-8 flex flex-col gap-4">
-          {/* Map */}
+        <div className="my-8">
+          {/* Map Container */}
           <div className="relative h-[500px] rounded-lg overflow-hidden">
             <div
               ref={mapContainer}
               className="absolute inset-0 w-full h-full"
             />
+
+            {/* Video Player - Overlay on right third of map */}
+            {currentVideo && !editMode && (
+              <div className="absolute right-4 top-4 bottom-4 w-1/3 bg-black/90 backdrop-blur-sm rounded-lg border border-white/20 shadow-2xl flex flex-col z-10">
+                <div className="relative flex-1 bg-black overflow-hidden rounded-t-lg">
+                <div className="absolute top-2 right-2 z-20 flex gap-2">
+                  <button
+                    onClick={() => setVideoFitMode(videoFitMode === 'contain' ? 'cover' : 'contain')}
+                    className="text-white/60 hover:text-white text-xs px-2 py-1 bg-white/10 rounded"
+                    title={videoFitMode === 'contain' ? 'Fill screen' : 'Fit to screen'}
+                  >
+                    {videoFitMode === 'contain' ? '⤢' : '▣'}
+                  </button>
+                  <button
+                    onClick={handleClose}
+                    className="text-white/60 hover:text-white text-sm"
+                  >
+                    ✕
+                  </button>
+                </div>
+                {currentVideo.videoUrl ? (
+                  <video
+                    ref={videoRef}
+                    src={currentVideo.videoUrl}
+                    controls
+                    controlsList="nodownload"
+                    autoPlay
+                    className={`w-full h-full ${videoFitMode === 'contain' ? 'object-contain' : 'object-cover'}`}
+                    style={{
+                      backgroundColor: '#000'
+                    }}
+                  />
+                ) : currentVideo.sourceUrl ? (
+                  <a
+                    href={currentVideo.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center gap-4 p-6 text-center"
+                  >
+                    <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-3xl">
+                      ▶
+                    </div>
+                    <span className="text-white text-sm">Open video source</span>
+                    <span className="text-gray-500 text-xs break-all">{currentVideo.sourceUrl}</span>
+                  </a>
+                ) : (
+                  <span className="text-gray-500 text-sm">No video available</span>
+                )}
+              </div>
+              <div className="p-3 border-t border-white/10">
+                <h3 className="text-white text-sm font-medium truncate">{currentVideo.title || 'Untitled'}</h3>
+                <p className="text-gray-500 text-xs mt-1">{currentVideo.channelName}</p>
+              </div>
+            </div>
+            )}
 
             {/* Vignette Effect - Gradients on all edges */}
             <div className="absolute inset-0 pointer-events-none">
@@ -584,58 +637,6 @@ export default function VenezuelaArticlePage() {
               </div>
             )}
           </div>
-
-          {/* Video Player - Below Map */}
-          {currentVideo && !editMode && (
-            <div className="w-full bg-black rounded-lg overflow-hidden border border-white/10 flex flex-col">
-              <div className="relative h-[300px] bg-black flex items-center justify-center">
-                <div className="absolute top-2 right-2 z-10 flex gap-2">
-                  <button
-                    onClick={() => setVideoFitMode(videoFitMode === 'contain' ? 'cover' : 'contain')}
-                    className="text-white/60 hover:text-white text-xs px-2 py-1 bg-white/10 rounded"
-                    title={videoFitMode === 'contain' ? 'Fill screen' : 'Fit to screen'}
-                  >
-                    {videoFitMode === 'contain' ? '⤢' : '▣'}
-                  </button>
-                  <button
-                    onClick={handleClose}
-                    className="text-white/60 hover:text-white text-sm"
-                  >
-                    ✕
-                  </button>
-                </div>
-                {currentVideo.videoUrl ? (
-                  <video
-                    ref={videoRef}
-                    src={currentVideo.videoUrl}
-                    controls
-                    autoPlay
-                    className={`w-full h-full ${videoFitMode === 'contain' ? 'object-contain' : 'object-cover'}`}
-                    style={{ backgroundColor: '#000' }}
-                  />
-                ) : currentVideo.sourceUrl ? (
-                  <a
-                    href={currentVideo.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex flex-col items-center gap-4 p-6 text-center"
-                  >
-                    <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-3xl">
-                      ▶
-                    </div>
-                    <span className="text-white text-sm">Open video source</span>
-                    <span className="text-gray-500 text-xs break-all">{currentVideo.sourceUrl}</span>
-                  </a>
-                ) : (
-                  <span className="text-gray-500 text-sm">No video available</span>
-                )}
-              </div>
-              <div className="p-3 border-t border-white/10">
-                <h3 className="text-white text-sm font-medium truncate">{currentVideo.title || 'Untitled'}</h3>
-                <p className="text-gray-500 text-xs mt-1">{currentVideo.channelName}</p>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Video List */}
@@ -660,11 +661,6 @@ export default function VenezuelaArticlePage() {
                       src="/icons/pin.png"
                       alt="Location pin"
                       className="w-5 h-6"
-                      style={{
-                        filter: currentVideo?.id === video.id
-                          ? 'brightness(0) saturate(100%) invert(35%) sepia(93%) saturate(1352%) hue-rotate(87deg) brightness(104%) contrast(97%)'
-                          : 'brightness(0) invert(1)'
-                      }}
                     />
                   </div>
                   <div className="flex-1 min-w-0">

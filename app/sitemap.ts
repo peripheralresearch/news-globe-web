@@ -40,6 +40,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'monthly',
       priority: 0.7,
     },
+    // Articles
+    {
+      url: `${baseUrl}/articles/venezuela`,
+      lastModified: new Date('2025-01-26'),
+      changeFrequency: 'weekly',
+      priority: 0.9,
+    },
   ]
 
   // TODO: Add dynamic article routes when article data is available

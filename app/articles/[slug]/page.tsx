@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import { ThemeProvider } from '@/app/contexts/ThemeContext'
 import ArticleClient from './ArticleClient'
 
 // Type definitions
@@ -242,7 +243,7 @@ export default async function ArticlePage({
   }
 
   return (
-    <>
+    <ThemeProvider>
       {/* JSON-LD Structured Data */}
       <script
         type="application/ld+json"
@@ -251,7 +252,7 @@ export default async function ArticlePage({
 
       {/* Article Content */}
       <ArticleClient article={article} />
-    </>
+    </ThemeProvider>
   )
 }
 

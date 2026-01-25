@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { ThemeProvider } from '@/app/contexts/ThemeContext'
 import ArticleClient from '../[slug]/ArticleClient'
 
 const article = {
@@ -149,12 +150,12 @@ export default function VenezuelaArticlePage() {
   }
 
   return (
-    <>
+    <ThemeProvider>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <ArticleClient article={article} />
-    </>
+    </ThemeProvider>
   )
 }

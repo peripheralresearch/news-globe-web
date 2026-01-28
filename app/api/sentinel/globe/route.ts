@@ -39,11 +39,11 @@ interface LocationData {
   entity_type: string;
   location_subtype: string;
   confidence: number;
-  story_count: number;
+  news_item_count: number;
   coordinates: [number, number];  // [longitude, latitude] - from event_location
   default_zoom: number;
   event_location: boolean;        // Indicates this is an event location
-  stories: Array<{
+  news_items: Array<{
     id: string;
     post_id: number;
     title: string | null;
@@ -183,11 +183,11 @@ export async function GET(request: NextRequest) {
         entity_type: 'Location',
         location_subtype: loc.location_subtype || loc.location_type,
         confidence: 0.8,
-        story_count: Number(loc.post_count),
+        news_item_count: Number(loc.post_count),
         coordinates: [loc.longitude, loc.latitude] as [number, number],  // event_location coordinates
         default_zoom: loc.default_zoom,
         event_location: loc.event_location ?? true,  // Mark as event location
-        stories: formattedPosts,
+        news_items: formattedPosts,
       } as LocationData;
     });
 

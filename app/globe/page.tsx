@@ -1839,6 +1839,7 @@ function MapMarker({
   const [isHovered, setIsHovered] = useState(false)
   const [ripples, setRipples] = useState<number[]>([])
   const [isExpanded, setIsExpanded] = useState(false)
+  const [expandedNewsItemId, setExpandedNewsItemId] = useState<string | null>(null)
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // Don't stop propagation so click can reach parent
@@ -1899,6 +1900,11 @@ function MapMarker({
   const handlePanelTouchMove = (e: React.TouchEvent) => {
     // Prevent touch scroll events from propagating to the map
     e.stopPropagation()
+  }
+
+  const toggleNewsItemExpanded = (e: React.MouseEvent, newsItemId: string) => {
+    e.stopPropagation()
+    setExpandedNewsItemId(expandedNewsItemId === newsItemId ? null : newsItemId)
   }
 
   // Size based on news item count (reduced by 50%)
@@ -2052,60 +2058,74 @@ function MapMarker({
                   scrollbarWidth: 'thin',
                   scrollbarColor: `${themeConfig.panel.scrollbar} transparent`
                 }}>
-                  {location.newsItems.map((newsItem, index) => (
-                    <div key={newsItem.id || index} className={`flex items-start gap-2 pb-3 border-b ${themeConfig.panel.dividerFaint} last:border-0`}>
-                      {/* News item thumbnail */}
-                      {newsItem.mediaUrl ? (
-                        <div className={`relative w-20 h-14 flex-shrink-0 rounded overflow-hidden ${themeConfig.panel.imagePlaceholder}`}>
-                          <img
-                            src={`/api/proxy-image?url=${encodeURIComponent(newsItem.mediaUrl)}`}
-                            alt={newsItem.title?.substring(0, 50) || 'News item image'}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none'
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <div className={`w-20 h-14 flex-shrink-0 rounded overflow-hidden ${themeConfig.panel.imagePlaceholder} flex items-center justify-center`}>
-                          <img
-                            src="/icons/newspaper.png"
-                            alt="news"
-                            className="w-5 h-5"
-                            style={{ filter: themeConfig.panel.iconFilter }}
-                          />
-                        </div>
-                      )}
+                  {location.newsItems.map((newsItem, index) => {
+                    const isNewsItemExpanded = expandedNewsItemId === newsItem.id
+                    return (
+                      <div
+                        key={newsItem.id || index}
+                        className={`pb-3 border-b ${themeConfig.panel.dividerFaint} last:border-0 cursor-pointer transition-colors ${newsItem.summary ? `${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-gray-50'}` : ''}`}
+                        onClick={(e) => newsItem.summary && toggleNewsItemExpanded(e, newsItem.id)}
+                      >
+                        <div className="flex items-start gap-2">
+                          {/* News item thumbnail */}
+                          {newsItem.mediaUrl ? (
+                            <div className={`relative w-20 h-14 flex-shrink-0 rounded overflow-hidden ${themeConfig.panel.imagePlaceholder}`}>
+                              <img
+                                src={`/api/proxy-image?url=${encodeURIComponent(newsItem.mediaUrl)}`}
+                                alt={newsItem.title?.substring(0, 50) || 'News item image'}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none'
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className={`w-20 h-14 flex-shrink-0 rounded overflow-hidden ${themeConfig.panel.imagePlaceholder} flex items-center justify-center`}>
+                              <img
+                                src="/icons/newspaper.png"
+                                alt="news"
+                                className="w-5 h-5"
+                                style={{ filter: themeConfig.panel.iconFilter }}
+                              />
+                            </div>
+                          )}
 
-                      {/* News item content */}
-                      <div className="flex-1 min-w-0">
-                        <h4 className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} leading-tight mb-1 line-clamp-2`}>
-                          {newsItem.title || 'Untitled'}
-                        </h4>
-                        {newsItem.summary && (
-                          <p className={`text-[10px] ${themeConfig.panel.textMuted} leading-relaxed line-clamp-2`}>
-                            {newsItem.summary.substring(0, 120)}
-                          </p>
-                        )}
-                        {(newsItem.sourceName || newsItem.created) && (
-                          <p className={`text-[9px] ${themeConfig.panel.textFaint} mt-1 flex items-center gap-1 flex-wrap`}>
-                            {newsItem.sourceName && (
-                              <>
-                                <img src="/icons/newspaper.png" alt="" className="inline-block w-3 h-3 align-middle" style={{ filter: themeConfig.panel.iconFilter }} />
-                                <span>{newsItem.sourceName}</span>
-                              </>
+                          {/* News item content */}
+                          <div className="flex-1 min-w-0">
+                            <h4 className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} leading-tight mb-1 line-clamp-2`}>
+                              {newsItem.title || 'Untitled'}
+                            </h4>
+                            {newsItem.summary && (
+                              <p className={`text-[10px] ${themeConfig.panel.textMuted} leading-relaxed ${isNewsItemExpanded ? '' : 'line-clamp-2'}`}>
+                                {newsItem.summary}
+                              </p>
                             )}
-                            {newsItem.sourceName && newsItem.created && (
-                              <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}>•</span>
+                            {(newsItem.sourceName || newsItem.created) && (
+                              <p className={`text-[9px] ${themeConfig.panel.textFaint} mt-1 flex items-center gap-1 flex-wrap`}>
+                                {newsItem.sourceName && (
+                                  <>
+                                    <img src="/icons/newspaper.png" alt="" className="inline-block w-3 h-3 align-middle" style={{ filter: themeConfig.panel.iconFilter }} />
+                                    <span>{newsItem.sourceName}</span>
+                                  </>
+                                )}
+                                {newsItem.sourceName && newsItem.created && (
+                                  <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}>•</span>
+                                )}
+                                {newsItem.created && (
+                                  <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}>{formatDate(newsItem.created)}</span>
+                                )}
+                              </p>
                             )}
-                            {newsItem.created && (
-                              <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}>{formatDate(newsItem.created)}</span>
+                            {newsItem.summary && (
+                              <div className={`text-[9px] ${theme === 'dark' ? 'text-white/50' : 'text-gray-500'} mt-1`}>
+                                {isNewsItemExpanded ? '▼ Click to collapse' : '▶ Click to expand'}
+                              </div>
                             )}
-                          </p>
-                        )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}

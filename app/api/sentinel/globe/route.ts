@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
 
     // Parse and validate query parameters
     const hoursParam = searchParams.get('hours');
-    const hours = hoursParam ? Math.max(1, Math.min(parseInt(hoursParam, 10), 720)) : 48;
+    const hours = hoursParam ? Math.max(0, Math.min(parseInt(hoursParam, 10), 720)) : 0; // 0 = all time
 
     const limitParam = searchParams.get('limit');
     const maxLocations = limitParam ? Math.max(1, Math.min(parseInt(limitParam, 10), 50)) : 30;
@@ -157,6 +157,9 @@ export async function GET(request: NextRequest) {
         seen.add(post.post_internal_id);
         return true;
       });
+
+      // Sort by most recent first
+      uniquePosts.sort((a, b) => new Date(b.post_date).getTime() - new Date(a.post_date).getTime());
 
       const formattedPosts = uniquePosts.map(post => {
         const channelUsername = post.channel_username?.replace(/^@/, '');

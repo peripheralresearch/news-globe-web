@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase/server'
 
-// DEPRECATED: This endpoint is maintained for backwards compatibility.
-// New implementations should use /api/videos/[country] instead.
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
 
@@ -26,14 +24,14 @@ export async function GET(
 
     const supabase = supabaseServer()
 
-    console.log(`[ICE API] Fetching videos for country: ${country}`)
+    console.log(`[Videos API] Fetching videos for country: ${country}`)
     const { data, error } = await supabase
       .from('video')
       .select('*')
       .eq('country', country)
       .order('created_at', { ascending: false })
 
-    console.log(`[ICE API] Found ${data?.length || 0} videos`)
+    console.log(`[Videos API] Found ${data?.length || 0} videos`)
 
     // Log first 3 videos with their positions for debugging
     if (data && data.length > 0) {
@@ -43,11 +41,11 @@ export async function GET(
         lng: v.longitude,
         updated_at: v.updated_at
       }))
-      console.log('[ICE API] Sample videos:', JSON.stringify(sampleVideos, null, 2))
+      console.log('[Videos API] Sample videos:', JSON.stringify(sampleVideos, null, 2))
     }
 
     if (error) {
-      console.error('ICE videos API - Query error:', error)
+      console.error('Videos API - Query error:', error)
       return NextResponse.json(
         { error: error.message },
         { status: 500 }
@@ -85,7 +83,7 @@ export async function GET(
       }
     )
   } catch (err) {
-    console.error('ICE videos API error:', err)
+    console.error('Videos API error:', err)
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err) },
       { status: 500 }

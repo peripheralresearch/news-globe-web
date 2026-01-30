@@ -36,7 +36,7 @@ graph TB
 
     subgraph "Data Layer"
         DB[(Supabase<br/>videos, stories)]
-        API["/api/ice/videos<br/>/api/stories"]
+        API["/api/videos<br/>/api/stories"]
     end
 
     G --> VH

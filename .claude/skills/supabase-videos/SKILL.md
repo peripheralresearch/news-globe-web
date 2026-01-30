@@ -43,7 +43,7 @@ video
 
 **Via API**:
 ```bash
-curl "http://localhost:3000/api/ice/videos/VE"
+curl "http://localhost:3000/api/videos/VE"
 ```
 
 **Direct SQL**:
@@ -223,7 +223,7 @@ ORDER BY updated_at DESC;
 
 ## Related Files
 
-- `app/api/ice/videos/[country]/route.ts` - Fetch videos by country
+- `app/api/videos/[country]/route.ts` - Fetch geolocated videos by country
 - `app/api/video/[id]/position/route.ts` - Update video position
 - `app/api/admin/add-videos/route.ts` - Bulk insert videos
 - `app/api/admin/remove-video/route.ts` - Search/delete videos

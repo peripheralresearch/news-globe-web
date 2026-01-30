@@ -158,7 +158,7 @@ map.current.setPaintProperty('non-venezuela-overlay', 'fill-color', theme === 'd
 
 ## Related Files
 
-- `app/api/ice/videos/[country]/route.ts` - Video data source
+- `app/api/videos/[country]/route.ts` - Video data source
 - `app/api/stories/country/[country]/route.ts` - Story data source
 - `app/api/video/[id]/position/route.ts` - Position updates
 - `public/icons/location-pin.png` - Red marker icon

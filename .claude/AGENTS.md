@@ -51,7 +51,8 @@ Required in `.env.local`:
 **Scope**: Next.js API routes, data shaping, response formatting.
 
 **Key Files**:
-- `app/api/ice/videos/[country]/route.ts` - Fetch videos by country
+- `app/api/videos/[country]/route.ts` - Fetch geolocated videos by country (primary)
+- `app/api/ice/videos/[country]/route.ts` - Fetch videos by country (deprecated, backwards compatibility)
 - `app/api/stories/country/[country]/route.ts` - Fetch stories by country
 - `app/api/video/[id]/position/route.ts` - Update video coordinates
 - `app/api/admin/add-videos/route.ts` - Insert videos (service role)
@@ -118,7 +119,7 @@ Required in `.env.local`:
 ### Video Data Flow
 
 1. **Source**: Videos stored in `video` table with `country='VE'`
-2. **API**: `GET /api/ice/videos/VE` queries and transforms to `VideoMarker[]`
+2. **API**: `GET /api/videos/VE` queries and transforms to `VideoMarker[]`
 3. **Fields**: `video_id`, `title`, `channel`, `published_date`, `latitude`, `longitude`, `public_url`, `source_url`
 4. **Display**: Mapbox markers with draggable pins in edit mode
 
@@ -193,7 +194,7 @@ const utcDate = new Date(Date.UTC(
 |------|--------------|
 | Run dev server | `npm run dev` |
 | Venezuela page | `app/venezuela/page.tsx` |
-| Videos API | `app/api/ice/videos/[country]/route.ts` |
+| Videos API | `app/api/videos/[country]/route.ts` |
 | Stories API | `app/api/stories/country/[country]/route.ts` |
 | Position update | `app/api/video/[id]/position/route.ts` |
 | Supabase service | `lib/supabase/service.ts` |

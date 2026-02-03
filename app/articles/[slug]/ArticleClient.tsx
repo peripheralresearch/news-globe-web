@@ -342,7 +342,7 @@ export default function ArticleClient({ article }: ArticleClientProps) {
                   }}
                 >
                   <p className="text-2xl leading-relaxed mb-2">
-                    "{article.pullQuote.text}"
+                    &ldquo;{article.pullQuote.text}&rdquo;
                   </p>
                   {article.pullQuote.attribution && (
                     <footer className="text-base not-italic" style={{ color: mutedTextColor }}>

@@ -281,7 +281,7 @@ function VenezuelaArticleContent() {
     videos.forEach(video => addItem(video.date, 'video', video))
     stories.forEach(story => addItem(story.created, 'story', story))
 
-    const startDate = earliest ? new Date(Math.min(earliest.getTime(), baseline.getTime())) : baseline
+    const startDate = earliest ? new Date(Math.min((earliest as Date).getTime(), baseline.getTime())) : baseline
 
     const days: {
       key: string

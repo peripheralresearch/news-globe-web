@@ -181,9 +181,9 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Sort by trending score and take top N
+    // Sort by news item count (most sources), then trending score as tiebreaker
     const trendingStories = scoredStories
-      .sort((a, b) => b.trendingScore - a.trendingScore)
+      .sort((a, b) => b.newsItemCount - a.newsItemCount || b.trendingScore - a.trendingScore)
       .slice(0, limit)
 
     return NextResponse.json({

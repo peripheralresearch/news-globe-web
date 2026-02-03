@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: '/api/',
       },
     ],
-    sitemap: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://peripheral.local'}/sitemap.xml`,
+    sitemap: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://theperipheral.org'}/sitemap.xml`,
   }
 }

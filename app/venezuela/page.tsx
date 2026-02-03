@@ -156,6 +156,7 @@ export default function VenezuelaPage() {
         <article>
           <h1>Venezuela Crisis: Live Updates</h1>
           <p>This page contains an interactive map with geolocated video evidence from Venezuela. Enable JavaScript to view the full experience.</p>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <p>For a text-based overview, visit <a href="/articles/venezuela">Venezuela Crisis Article</a>.</p>
         </article>
       </noscript>

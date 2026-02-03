@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase/server'
 
+// DEPRECATED: This endpoint is maintained for backwards compatibility.
+// New implementations should use /api/videos/[country] instead.
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
 

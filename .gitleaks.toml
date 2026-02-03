@@ -23,10 +23,13 @@ paths = [
   '''README\.md$''',            # Contains example Gitleaks output in documentation
 ]
 
-# Allowlist specific commits containing Mapbox public tokens (client-side, not secrets)
+# Allowlist specific commits containing public tokens (client-side, not secrets)
 commits = [
   '''4fcc7485f3dc88e7dbed0f673c3a596049f1e0e2''',  # index.html, telegram_visualization.html with Mapbox token
   '''42376cf3b03bc967ce8922739891678072c5354a''',  # main.js with Mapbox token
+  '''84934d8c3d2db4d4f5cc2341d99adf5d9c6b8a09''',  # index.html, telegram_visualization.html with Mapbox token
+  '''db54a88fd033813a062c3a81eced2bd4ae0964f8''',  # main.js with Mapbox token
+  '''4796ea8e19b7dc366230943d812d71d8011c772e''',  # STORIES_INTEGRATION.md with JWT header placeholder
 ]
 
 # Precise regex for public Stripe payment links only

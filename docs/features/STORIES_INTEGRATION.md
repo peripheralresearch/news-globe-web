@@ -354,9 +354,9 @@ LIMIT 10;
 Required environment variables in `.env.local`:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=https://zghbrwbfdoalgzpcnbcm.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
+SUPABASE_ANON_KEY=<your-supabase-anon-key>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
 ```
 
 ## Future Enhancements
@@ -402,8 +402,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 1. Check Supabase connection:
    ```bash
-   curl -H "apikey: YOUR_ANON_KEY" \
-     "https://zghbrwbfdoalgzpcnbcm.supabase.co/rest/v1/story?select=*&limit=1"
+   curl -H "apikey: $SUPABASE_ANON_KEY" \
+     "$SUPABASE_URL/rest/v1/story?select=*&limit=1"
    ```
 
 2. Verify environment variables are set

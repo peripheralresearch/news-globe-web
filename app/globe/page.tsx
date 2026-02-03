@@ -7,22 +7,98 @@ import { createRoot } from 'react-dom/client'
 import type { FeatureCollection, Feature, Point, LineString } from 'geojson'
 
 
-// Global styles for ripple effect on click and pulse animation
-if (typeof document !== 'undefined') {
-  const style = document.createElement('style')
-  style.textContent = `
+// Theme configuration
+type Theme = 'light' | 'dark'
+
+const THEME_CONFIG = {
+  light: {
+    mapStyle: 'mapbox://styles/mapbox/light-v11',
+    dotColor: '#1a1a2e',
+    fog: {
+      color: '#ffffff',
+      highColor: '#f0f0f0',
+      spaceColor: '#ffffff',
+      starIntensity: 0,
+    },
+    background: 'bg-white',
+    panel: {
+      bg: 'bg-white/95',
+      border: 'border-gray-200',
+      hoverBorder: 'hover:border-gray-400',
+      hoverBg: 'hover:bg-white',
+      text: 'text-gray-900',
+      textMuted: 'text-gray-600',
+      textFaint: 'text-gray-500',
+      imagePlaceholder: 'bg-gray-100',
+      divider: 'border-gray-200',
+      dividerFaint: 'border-gray-100',
+      scrollbar: 'rgba(0,0,0,0.2)',
+      iconFilter: 'brightness(0)',
+    },
+    buttonBg: 'bg-white/90',
+    buttonBorder: 'border-gray-200',
+    buttonText: 'text-gray-700',
+    buttonHover: 'hover:bg-gray-100 hover:border-gray-300',
+  },
+  dark: {
+    mapStyle: 'mapbox://styles/mapbox/dark-v11',
+    dotColor: '#ffffff',
+    fog: {
+      color: '#0a0a0f',
+      highColor: '#1a1a2e',
+      spaceColor: '#000000',
+      starIntensity: 0.15,
+    },
+    background: 'bg-black',
+    panel: {
+      bg: 'bg-black/95',
+      border: 'border-white/40',
+      hoverBorder: 'hover:border-white/60',
+      hoverBg: 'hover:bg-black',
+      text: 'text-white',
+      textMuted: 'text-gray-300',
+      textFaint: 'text-gray-400',
+      imagePlaceholder: 'bg-gray-800',
+      divider: 'border-white/20',
+      dividerFaint: 'border-white/10',
+      scrollbar: 'rgba(255,255,255,0.3)',
+      iconFilter: 'brightness(0) invert(1)',
+    },
+    buttonBg: 'bg-black/70',
+    buttonBorder: 'border-white/30',
+    buttonText: 'text-white',
+    buttonHover: 'hover:bg-black/90 hover:border-white/50',
+  },
+}
+
+// Function to inject theme-specific CSS
+function injectThemeStyles(theme: Theme) {
+  const config = THEME_CONFIG[theme]
+  const dotColor = config.dotColor
+  const dotRgb = theme === 'dark' ? '255, 255, 255' : '26, 26, 46'
+
+  const styleId = 'globey-ripple-animation'
+  let styleEl = document.getElementById(styleId) as HTMLStyleElement | null
+
+  if (!styleEl) {
+    styleEl = document.createElement('style')
+    styleEl.id = styleId
+    document.head.appendChild(styleEl)
+  }
+
+  styleEl.textContent = `
     @keyframes pulse-glow {
       0%, 100% {
-        box-shadow: 0 0 12px rgba(255, 255, 255, 0.4),
-                    0 0 24px rgba(255, 255, 255, 0.25),
-                    0 0 36px rgba(255, 255, 255, 0.15),
-                    0 0 48px rgba(255, 255, 255, 0.08);
+        box-shadow: 0 0 12px rgba(${dotRgb}, ${theme === 'dark' ? '0.4' : '0.3'}),
+                    0 0 24px rgba(${dotRgb}, ${theme === 'dark' ? '0.25' : '0.2'}),
+                    0 0 36px rgba(${dotRgb}, ${theme === 'dark' ? '0.15' : '0.1'}),
+                    0 0 48px rgba(${dotRgb}, ${theme === 'dark' ? '0.08' : '0.05'});
       }
       50% {
-        box-shadow: 0 0 20px rgba(255, 255, 255, 0.6),
-                    0 0 40px rgba(255, 255, 255, 0.4),
-                    0 0 60px rgba(255, 255, 255, 0.25),
-                    0 0 80px rgba(255, 255, 255, 0.15);
+        box-shadow: 0 0 20px rgba(${dotRgb}, ${theme === 'dark' ? '0.6' : '0.4'}),
+                    0 0 40px rgba(${dotRgb}, ${theme === 'dark' ? '0.4' : '0.3'}),
+                    0 0 60px rgba(${dotRgb}, ${theme === 'dark' ? '0.25' : '0.2'}),
+                    0 0 80px rgba(${dotRgb}, ${theme === 'dark' ? '0.15' : '0.1'});
       }
     }
 
@@ -62,17 +138,18 @@ if (typeof document !== 'undefined') {
       width: 12px;
       height: 12px;
       border-radius: 50%;
-      background-color: rgba(255, 255, 255, 0.8);
-      border: 1px solid rgba(255, 255, 255, 0.9);
+      background-color: rgba(${dotRgb}, ${theme === 'dark' ? '0.8' : '0.6'});
+      border: 1px solid rgba(${dotRgb}, ${theme === 'dark' ? '0.9' : '0.7'});
       pointer-events: none;
       animation: ripple-expand 0.6s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
       z-index: 1000;
     }
   `
-  if (!document.getElementById('globey-ripple-animation')) {
-    style.id = 'globey-ripple-animation'
-    document.head.appendChild(style)
-  }
+}
+
+// Initial style injection
+if (typeof document !== 'undefined') {
+  injectThemeStyles('dark')
 }
 interface NewsItem {
     id: string
@@ -81,7 +158,7 @@ interface NewsItem {
     created: string
     location: string
     coordinates: [number, number]  // From event_location - where the news event occurred
-    storyCount?: number
+    newsItemCount?: number
 }
 
 interface LocationAggregate {
@@ -89,9 +166,9 @@ interface LocationAggregate {
   locationSubtype: string
   coordinates: [number, number]  // From event_location - actual location where events occurred
   defaultZoom?: number
-  storyCount: number
+  newsItemCount: number
   eventLocation?: boolean        // Indicates this is an event location (not just mentioned)
-  stories: Array<{
+  newsItems: Array<{
     id: string
     title: string | null
     summary: string | null
@@ -113,7 +190,7 @@ interface GlobeData {
   }
 }
 
-const STORY_SUMMARY_LIMIT = 220
+const NEWS_ITEM_SUMMARY_LIMIT = 220
 const INITIAL_GLOBE_LIMIT = 35
 const FULL_GLOBE_LIMIT = 150
 
@@ -233,7 +310,7 @@ function formatDate(dateString: string): string {
 export default function Home() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
-  const storiesRef = useRef<FeatureCollection<Point>>({ type: 'FeatureCollection', features: [] })
+  const eventLocationsRef = useRef<FeatureCollection<Point>>({ type: 'FeatureCollection', features: [] })
   const markersRef = useRef<mapboxgl.Marker[]>([])
 
   // Idle rotation refs
@@ -350,6 +427,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true)
   const [mapError, setMapError] = useState<string | null>(null)
   const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street')
+  const [theme, setTheme] = useState<Theme>('dark')
 
   const brandingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -367,19 +445,170 @@ export default function Home() {
     return !isCity
   }, [])
 
+  // Toggle theme handler
+  const toggleTheme = useCallback(() => {
+    if (!map.current) return
+
+    const newTheme = theme === 'dark' ? 'light' : 'dark'
+    const config = THEME_CONFIG[newTheme]
+
+    setTheme(newTheme)
+    injectThemeStyles(newTheme)
+
+    // Store current data
+    const eventLocationsData = eventLocationsRef.current
+
+    // Set new map style
+    map.current.setStyle(config.mapStyle)
+
+    // Re-add layers after style loads
+    map.current.once('style.load', () => {
+      if (!map.current) return
+
+      map.current.setProjection('globe')
+
+      map.current.setFog({
+        'horizon-blend': 0.02,
+        color: config.fog.color,
+        'high-color': config.fog.highColor,
+        'space-color': config.fog.spaceColor,
+        'star-intensity': config.fog.starIntensity,
+      })
+
+      // Re-add event-locations source
+      if (!map.current.getSource('event-locations')) {
+        map.current.addSource('event-locations', {
+          type: 'geojson',
+          data: eventLocationsData,
+        })
+      }
+
+      // Re-add layers with theme colors
+      const dotColor = config.dotColor
+
+      if (!map.current.getLayer('event-locations-dots')) {
+        map.current.addLayer({
+          id: 'event-locations-dots',
+          type: 'circle',
+          source: 'event-locations',
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['coalesce', ['get', 'newsItemCount'], 1], 1, 1.5, 25, 4],
+            'circle-color': dotColor,
+            'circle-opacity': 0.9,
+          },
+        })
+      }
+
+      if (!map.current.getLayer('event-locations-glow-outer')) {
+        map.current.addLayer({
+          id: 'event-locations-glow-outer',
+          type: 'circle',
+          source: 'event-locations',
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['coalesce', ['get', 'newsItemCount'], 1], 1, 12, 25, 18],
+            'circle-color': dotColor,
+            'circle-opacity': 0.1,
+            'circle-blur': 1,
+          },
+        })
+      }
+
+      if (!map.current.getLayer('event-locations-glow-middle')) {
+        map.current.addLayer({
+          id: 'event-locations-glow-middle',
+          type: 'circle',
+          source: 'event-locations',
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['coalesce', ['get', 'newsItemCount'], 1], 1, 8, 25, 12],
+            'circle-color': dotColor,
+            'circle-opacity': 0.15,
+            'circle-blur': 0.8,
+          },
+        })
+      }
+
+      if (!map.current.getLayer('event-locations-glow-inner')) {
+        map.current.addLayer({
+          id: 'event-locations-glow-inner',
+          type: 'circle',
+          source: 'event-locations',
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['coalesce', ['get', 'newsItemCount'], 1], 1, 5, 25, 8],
+            'circle-color': dotColor,
+            'circle-opacity': 0.25,
+            'circle-blur': 0.5,
+          },
+        })
+      }
+
+      // Re-add ring source and layers
+      if (!map.current.getSource('equator-ring')) {
+        map.current.addSource('equator-ring', {
+          type: 'geojson',
+          data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [[0, 0], [0, 0]] }, properties: {} },
+        })
+      }
+
+      if (!map.current.getLayer('equator-ring-glow')) {
+        map.current.addLayer({
+          id: 'equator-ring-glow',
+          type: 'line',
+          source: 'equator-ring',
+          paint: { 'line-color': dotColor, 'line-width': 8, 'line-opacity': 0.1, 'line-blur': 6 },
+        })
+      }
+
+      if (!map.current.getLayer('equator-ring-line')) {
+        map.current.addLayer({
+          id: 'equator-ring-line',
+          type: 'line',
+          source: 'equator-ring',
+          paint: { 'line-color': dotColor, 'line-width': 1.5, 'line-opacity': 0.4 },
+        })
+      }
+
+      // Re-add border sources and layers
+      if (!map.current.getSource('country-border-glow')) {
+        map.current.addSource('country-border-glow', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+      }
+
+      if (!map.current.getLayer('country-border-glow')) {
+        map.current.addLayer({
+          id: 'country-border-glow',
+          type: 'line',
+          source: 'country-border-glow',
+          paint: { 'line-color': dotColor, 'line-width': 6, 'line-opacity': 0.3, 'line-blur': 4 },
+        })
+      }
+
+      if (!map.current.getSource('country-border-line')) {
+        map.current.addSource('country-border-line', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+      }
+
+      if (!map.current.getLayer('country-border-line')) {
+        map.current.addLayer({
+          id: 'country-border-line',
+          type: 'line',
+          source: 'country-border-line',
+          paint: { 'line-color': dotColor, 'line-width': 3, 'line-opacity': 0.8 },
+        })
+      }
+    })
+  }, [theme])
+
   // Toggle map style handler
   const toggleMapStyle = useCallback(() => {
     if (!map.current) return
 
     const newStyle = mapStyle === 'street' ? 'satellite' : 'street'
     const styleUrl = newStyle === 'street'
-      ? 'mapbox://styles/mapbox/dark-v11'
+      ? 'mapbox://styles/mapbox/light-v11'
       : 'mapbox://styles/mapbox/satellite-streets-v12'
 
     setMapStyle(newStyle)
 
     // Store current sources and layers data before style change
-    const storiesData = storiesRef.current
+    const eventLocationsData = eventLocationsRef.current
 
     // Set new style
     map.current.setStyle(styleUrl)
@@ -393,97 +622,97 @@ export default function Home() {
 
       // Restore atmosphere
       map.current.setFog({
-        'horizon-blend': 0.1,
-        color: '#1a1a1a',
-        'high-color': '#1a1a1a',
-        'space-color': '#000000',
-        'star-intensity': 0.4,
+        'horizon-blend': 0.02,
+        color: '#ffffff',
+        'high-color': '#f0f0f0',
+        'space-color': '#ffffff',
+        'star-intensity': 0,
       })
 
-      // Re-add stories source (check if it already exists first)
-      if (!map.current.getSource('stories')) {
-        map.current.addSource('stories', {
+      // Re-add event-locations source (check if it already exists first)
+      if (!map.current.getSource('event-locations')) {
+        map.current.addSource('event-locations', {
           type: 'geojson',
-          data: storiesData,
+          data: eventLocationsData,
         })
       }
 
       // Re-add base GPU-rendered dots layer
-      if (!map.current.getLayer('stories-dots')) {
+      if (!map.current.getLayer('event-locations-dots')) {
         map.current.addLayer({
-          id: 'stories-dots',
+          id: 'event-locations-dots',
           type: 'circle',
-          source: 'stories',
+          source: 'event-locations',
           paint: {
             'circle-radius': [
               'interpolate',
               ['linear'],
-              ['coalesce', ['get', 'storyCount'], 1],
+              ['coalesce', ['get', 'newsItemCount'], 1],
               1, 1.5,
               25, 4
             ],
-            'circle-color': '#ffffff',
+            'circle-color': '#1a1a2e',
             'circle-opacity': 0.9,
           },
         })
       }
 
       // Re-add glow layers (check if they already exist first)
-      if (!map.current.getLayer('stories-glow-outer')) {
+      if (!map.current.getLayer('event-locations-glow-outer')) {
         map.current.addLayer({
-          id: 'stories-glow-outer',
+          id: 'event-locations-glow-outer',
           type: 'circle',
-          source: 'stories',
+          source: 'event-locations',
           paint: {
             'circle-radius': [
               'interpolate',
               ['linear'],
-              ['coalesce', ['get', 'storyCount'], 1],
+              ['coalesce', ['get', 'newsItemCount'], 1],
               1, 12,
               25, 18
             ],
-            'circle-color': '#ffffff',
-            'circle-opacity': 0.15,
+            'circle-color': '#1a1a2e',
+            'circle-opacity': 0.1,
             'circle-blur': 1,
           },
         })
       }
 
-      if (!map.current.getLayer('stories-glow-middle')) {
+      if (!map.current.getLayer('event-locations-glow-middle')) {
         map.current.addLayer({
-          id: 'stories-glow-middle',
+          id: 'event-locations-glow-middle',
           type: 'circle',
-          source: 'stories',
+          source: 'event-locations',
           paint: {
             'circle-radius': [
               'interpolate',
               ['linear'],
-              ['coalesce', ['get', 'storyCount'], 1],
+              ['coalesce', ['get', 'newsItemCount'], 1],
               1, 8,
               25, 12
             ],
-            'circle-color': '#ffffff',
-            'circle-opacity': 0.25,
+            'circle-color': '#1a1a2e',
+            'circle-opacity': 0.15,
             'circle-blur': 0.8,
           },
         })
       }
 
-      if (!map.current.getLayer('stories-glow-inner')) {
+      if (!map.current.getLayer('event-locations-glow-inner')) {
         map.current.addLayer({
-          id: 'stories-glow-inner',
+          id: 'event-locations-glow-inner',
           type: 'circle',
-          source: 'stories',
+          source: 'event-locations',
           paint: {
             'circle-radius': [
               'interpolate',
               ['linear'],
-              ['coalesce', ['get', 'storyCount'], 1],
+              ['coalesce', ['get', 'newsItemCount'], 1],
               1, 5,
               25, 8
             ],
-            'circle-color': '#ffffff',
-            'circle-opacity': 0.4,
+            'circle-color': '#1a1a2e',
+            'circle-opacity': 0.25,
             'circle-blur': 0.5,
           },
         })
@@ -511,9 +740,9 @@ export default function Home() {
           type: 'line',
           source: 'equator-ring',
           paint: {
-            'line-color': '#ffffff',
+            'line-color': '#1a1a2e',
             'line-width': 8,
-            'line-opacity': 0.15,
+            'line-opacity': 0.1,
             'line-blur': 6,
           },
         })
@@ -525,9 +754,9 @@ export default function Home() {
           type: 'line',
           source: 'equator-ring',
           paint: {
-            'line-color': '#ffffff',
+            'line-color': '#1a1a2e',
             'line-width': 1.5,
-            'line-opacity': 0.6,
+            'line-opacity': 0.4,
           },
         })
       }
@@ -549,9 +778,9 @@ export default function Home() {
           type: 'line',
           source: 'country-border-glow',
           paint: {
-            'line-color': '#ffffff',
+            'line-color': '#1a1a2e',
             'line-width': 6,
-            'line-opacity': 0.5,
+            'line-opacity': 0.3,
             'line-blur': 4,
           },
         })
@@ -573,9 +802,9 @@ export default function Home() {
           type: 'line',
           source: 'country-border-line',
           paint: {
-            'line-color': '#ffffff',
+            'line-color': '#1a1a2e',
             'line-width': 3,
-            'line-opacity': 1.0,
+            'line-opacity': 0.8,
           },
         })
       }
@@ -587,7 +816,7 @@ export default function Home() {
   // Load globe data
   const fetchGlobePage = useCallback(async (limit: number) => {
     try {
-      const response = await fetch(`/api/sentinel/globe?limit=${limit}&hours=720&postLimit=5000`)
+      const response = await fetch(`/api/sentinel/globe?limit=${limit}&hours=0`)
       if (!response.ok) {
         console.error(`Globe API (limit=${limit}) responded with ${response.status}`)
         return null
@@ -603,9 +832,9 @@ export default function Home() {
       const locations: LocationAggregate[] = []
 
       for (const loc of result.data.locations || []) {
-        if (!Array.isArray(loc.stories) || !loc.coordinates) continue
+        if (!Array.isArray(loc.news_items) || !loc.coordinates) continue
 
-        const mappedStories = loc.stories.map((s: any) => ({
+        const mappedNewsItems = loc.news_items.map((s: any) => ({
           id: s.id,
           title: s.title,
           summary: s.summary,
@@ -617,9 +846,9 @@ export default function Home() {
           mediaUrl: s.media_url || null,
         }))
 
-        if (mappedStories.length === 0) continue
+        if (mappedNewsItems.length === 0) continue
 
-        const firstItem = mappedStories[0]
+        const firstItem = mappedNewsItems[0]
         newsItems.push({
           id: firstItem.id,
           title: firstItem.title,
@@ -627,7 +856,7 @@ export default function Home() {
           created: firstItem.created,
           location: loc.entity_name,
           coordinates: loc.coordinates,
-          storyCount: loc.story_count,
+          newsItemCount: loc.news_item_count,
         })
 
         locations.push({
@@ -635,8 +864,8 @@ export default function Home() {
           locationSubtype: loc.location_subtype,
           coordinates: loc.coordinates,
           defaultZoom: loc.default_zoom,
-          storyCount: loc.story_count,
-          stories: mappedStories,
+          newsItemCount: loc.news_item_count,
+          newsItems: mappedNewsItems,
         })
       }
 
@@ -726,17 +955,17 @@ export default function Home() {
           title: item.title,
           location: item.location,
           created: item.created,
-          storyCount: item.storyCount || 1,
+          newsItemCount: item.newsItemCount || 1,
           phaseOffset: phaseOffset, // Unique phase offset for each dot (0-1)
         }
       }
     })
 
-    storiesRef.current = { type: 'FeatureCollection', features: newsItemFeatures }
+    eventLocationsRef.current = { type: 'FeatureCollection', features: newsItemFeatures }
 
-    const source = map.current.getSource('stories') as mapboxgl.GeoJSONSource
+    const source = map.current.getSource('event-locations') as mapboxgl.GeoJSONSource
     if (source) {
-      source.setData(storiesRef.current)
+      source.setData(eventLocationsRef.current)
     }
 
     console.log('Map data updated successfully')
@@ -769,6 +998,7 @@ export default function Home() {
           location={location}
           animationDelay={animationDelay}
           isClicked={clickedLocation?.name === location.name}
+          theme={theme}
         />
       )
 
@@ -821,7 +1051,7 @@ export default function Home() {
     return () => {
       markersRef.current.forEach(marker => marker.remove())
     }
-  }, [globeData, isCountryLocation, triggerRingAnimation, clickedLocation])
+  }, [globeData, isCountryLocation, triggerRingAnimation, clickedLocation, theme])
 
   // Entrance animation with smooth deceleration (ease-out)
   const animateEntrance = useCallback(() => {
@@ -899,9 +1129,12 @@ export default function Home() {
         const randomLng = Math.random() * 360 - 180 // -180 to 180
         console.log('🎲 Random starting position:', randomLng)
 
+        // Use dark theme by default
+        const initialConfig = THEME_CONFIG['dark']
+
         map.current = new mapboxgl.Map({
           container: mapContainer.current!,
-          style: 'mapbox://styles/mapbox/dark-v11',
+          style: initialConfig.mapStyle,
           center: [randomLng, 30],
           zoom: 0.5,
           projection: 'globe' as unknown as mapboxgl.Projection,
@@ -914,16 +1147,18 @@ export default function Home() {
           if (!map.current) return
 
           // Ensure globe projection is set
-            map.current.setProjection('globe')
+          map.current.setProjection('globe')
 
-          // Set globe atmosphere with white glow (10% brightness)
-            map.current.setFog({
-              'horizon-blend': 0.1,
-            color: '#1a1a1a',
-              'high-color': '#1a1a1a',
-              'space-color': '#000000',
-            'star-intensity': 0.4,
+          // Set globe atmosphere with dark theme styling
+          map.current.setFog({
+            'horizon-blend': 0.02,
+            color: initialConfig.fog.color,
+            'high-color': initialConfig.fog.highColor,
+            'space-color': initialConfig.fog.spaceColor,
+            'star-intensity': initialConfig.fog.starIntensity,
           })
+
+          const dotColor = initialConfig.dotColor
 
           // Add ripple ring source (starts hidden, animates on dot click)
           map.current.addSource('equator-ring', {
@@ -944,9 +1179,9 @@ export default function Home() {
             type: 'line',
             source: 'equator-ring',
             paint: {
-              'line-color': '#ffffff',
+              'line-color': dotColor,
               'line-width': 8,
-              'line-opacity': 0.15,
+              'line-opacity': 0.1,
               'line-blur': 6,
             },
           })
@@ -957,32 +1192,32 @@ export default function Home() {
             type: 'line',
             source: 'equator-ring',
             paint: {
-              'line-color': '#ffffff',
+              'line-color': dotColor,
               'line-width': 1.5,
-              'line-opacity': 0.6,
+              'line-opacity': 0.4,
             },
           })
 
-          // Add stories source
-          map.current.addSource('stories', {
+          // Add event-locations source
+          map.current.addSource('event-locations', {
             type: 'geojson',
             data: { type: 'FeatureCollection', features: [] },
           })
 
           // Base GPU-rendered dots layer for smooth globe tracking
           map.current.addLayer({
-            id: 'stories-dots',
+            id: 'event-locations-dots',
             type: 'circle',
-            source: 'stories',
+            source: 'event-locations',
             paint: {
               'circle-radius': [
                 'interpolate',
                 ['linear'],
-                ['coalesce', ['get', 'storyCount'], 1],
+                ['coalesce', ['get', 'newsItemCount'], 1],
                 1, 1.5,
                 25, 4
               ],
-              'circle-color': '#ffffff',
+              'circle-color': dotColor,
               'circle-opacity': 0.9,
             },
           })
@@ -990,57 +1225,57 @@ export default function Home() {
           // Create multiple glow layers for enhanced visual effect
           // Outer glow layer 1 - largest, most diffused
           map.current.addLayer({
-            id: 'stories-glow-outer',
+            id: 'event-locations-glow-outer',
             type: 'circle',
-            source: 'stories',
+            source: 'event-locations',
             paint: {
               'circle-radius': [
                 'interpolate',
                 ['linear'],
-                ['coalesce', ['get', 'storyCount'], 1],
+                ['coalesce', ['get', 'newsItemCount'], 1],
                 1, 12,
                 25, 18
               ],
-              'circle-color': '#ffffff',
-              'circle-opacity': 0.15,
+              'circle-color': dotColor,
+              'circle-opacity': 0.1,
               'circle-blur': 1,
             },
           })
 
           // Middle glow layer - medium size
           map.current.addLayer({
-            id: 'stories-glow-middle',
+            id: 'event-locations-glow-middle',
             type: 'circle',
-            source: 'stories',
+            source: 'event-locations',
             paint: {
               'circle-radius': [
                 'interpolate',
                 ['linear'],
-                ['coalesce', ['get', 'storyCount'], 1],
+                ['coalesce', ['get', 'newsItemCount'], 1],
                 1, 8,
                 25, 12
               ],
-              'circle-color': '#ffffff',
-              'circle-opacity': 0.25,
+              'circle-color': dotColor,
+              'circle-opacity': 0.15,
               'circle-blur': 0.8,
             },
           })
 
           // Inner glow layer - smallest, brightest
           map.current.addLayer({
-            id: 'stories-glow-inner',
+            id: 'event-locations-glow-inner',
             type: 'circle',
-            source: 'stories',
+            source: 'event-locations',
             paint: {
               'circle-radius': [
                 'interpolate',
                 ['linear'],
-                ['coalesce', ['get', 'storyCount'], 1],
+                ['coalesce', ['get', 'newsItemCount'], 1],
                 1, 5,
                 25, 8
               ],
-              'circle-color': '#ffffff',
-              'circle-opacity': 0.4,
+              'circle-color': dotColor,
+              'circle-opacity': 0.25,
               'circle-blur': 0.5,
             },
           })
@@ -1099,45 +1334,45 @@ export default function Home() {
             }
 
             // Outer glow - slow, large pulse with per-dot phase variation
-            if (map.current.getLayer('stories-glow-outer')) {
+            if (map.current.getLayer('event-locations-glow-outer')) {
               const outerOpacity = createSmoothPulse(0.08, 0.15, 0.4, 2.0)
-              map.current.setPaintProperty('stories-glow-outer', 'circle-opacity', outerOpacity)
+              map.current.setPaintProperty('event-locations-glow-outer', 'circle-opacity', outerOpacity)
 
               const outerScaleBase = createSmoothPulse(1, 0.35, 0.4, 2.0)
-              map.current.setPaintProperty('stories-glow-outer', 'circle-radius', [
+              map.current.setPaintProperty('event-locations-glow-outer', 'circle-radius', [
                 'interpolate',
                 ['linear'],
-                ['coalesce', ['get', 'storyCount'], 1],
+                ['coalesce', ['get', 'newsItemCount'], 1],
                 1, ['*', 12, outerScaleBase],
                 25, ['*', 18, outerScaleBase]
               ])
             }
 
             // Middle glow - medium speed with different frequency and phase multiplier
-            if (map.current.getLayer('stories-glow-middle')) {
+            if (map.current.getLayer('event-locations-glow-middle')) {
               const middleOpacity = createSmoothPulse(0.15, 0.2, 0.6, 2.5)
-              map.current.setPaintProperty('stories-glow-middle', 'circle-opacity', middleOpacity)
+              map.current.setPaintProperty('event-locations-glow-middle', 'circle-opacity', middleOpacity)
 
               const middleScaleBase = createSmoothPulse(1, 0.3, 0.6, 2.5)
-              map.current.setPaintProperty('stories-glow-middle', 'circle-radius', [
+              map.current.setPaintProperty('event-locations-glow-middle', 'circle-radius', [
                 'interpolate',
                 ['linear'],
-                ['coalesce', ['get', 'storyCount'], 1],
+                ['coalesce', ['get', 'newsItemCount'], 1],
                 1, ['*', 8, middleScaleBase],
                 25, ['*', 12, middleScaleBase]
               ])
             }
 
             // Inner glow - fast, bright pulse with even different timing
-            if (map.current.getLayer('stories-glow-inner')) {
+            if (map.current.getLayer('event-locations-glow-inner')) {
               const innerOpacity = createSmoothPulse(0.25, 0.25, 0.9, 3.0)
-              map.current.setPaintProperty('stories-glow-inner', 'circle-opacity', innerOpacity)
+              map.current.setPaintProperty('event-locations-glow-inner', 'circle-opacity', innerOpacity)
 
               const innerScaleBase = createSmoothPulse(1, 0.4, 0.9, 3.0)
-              map.current.setPaintProperty('stories-glow-inner', 'circle-radius', [
+              map.current.setPaintProperty('event-locations-glow-inner', 'circle-radius', [
                 'interpolate',
                 ['linear'],
-                ['coalesce', ['get', 'storyCount'], 1],
+                ['coalesce', ['get', 'newsItemCount'], 1],
                 1, ['*', 5, innerScaleBase],
                 25, ['*', 8, innerScaleBase]
               ])
@@ -1170,9 +1405,9 @@ export default function Home() {
             type: 'line',
             source: 'country-border-glow',
             paint: {
-              'line-color': '#ffffff',
+              'line-color': dotColor,
               'line-width': 6,
-              'line-opacity': 0.5,
+              'line-opacity': 0.3,
               'line-blur': 4,
             },
           })
@@ -1182,9 +1417,9 @@ export default function Home() {
             type: 'line',
             source: 'country-border-line',
             paint: {
-              'line-color': '#ffffff',
+              'line-color': dotColor,
               'line-width': 3,
-              'line-opacity': 1.0,
+              'line-opacity': 0.8,
             },
           })
 
@@ -1513,7 +1748,7 @@ export default function Home() {
     const handleMapClick = (e: mapboxgl.MapMouseEvent) => {
       // Only clear if we didn't click on a marker
       const features = map.current?.queryRenderedFeatures(e.point, {
-        layers: ['stories-dots']
+        layers: ['event-locations-dots']
       })
 
       if (!features || features.length === 0) {
@@ -1528,9 +1763,11 @@ export default function Home() {
     }
   }, [])
 
+  const themeConfig = THEME_CONFIG[theme]
+
   return (
     <>
-    <div className="relative w-full h-screen bg-black overflow-hidden">
+    <div className={`relative w-full h-screen ${themeConfig.background} overflow-hidden transition-colors duration-500`}>
       {/* Map */}
       <div
         ref={mapContainer}
@@ -1538,20 +1775,38 @@ export default function Home() {
         style={{ minHeight: '100vh', minWidth: '100vw' }}
       />
 
-
-      {/* Top Right Controls - Map Style Toggle */}
+      {/* Top Right Controls */}
       {globeData && !isLoading && !selectedLocation && (
-        <div className="absolute top-4 right-4 z-10">
+        <div className="absolute top-4 right-4 z-10 flex gap-2">
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className={`p-2.5 backdrop-blur border rounded-lg transition-all shadow-sm ${themeConfig.buttonBg} ${themeConfig.buttonBorder} ${themeConfig.buttonText} ${themeConfig.buttonHover}`}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            {theme === 'dark' ? (
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            )}
+          </button>
+
+          {/* Map Style Toggle */}
           <button
             onClick={toggleMapStyle}
-            className="p-2.5 bg-black/80 backdrop-blur border border-white/20 rounded-lg text-white hover:bg-white/10 hover:border-white/40 transition-all"
+            className={`p-2.5 backdrop-blur border rounded-lg transition-all shadow-sm ${themeConfig.buttonBg} ${themeConfig.buttonBorder} ${themeConfig.buttonText} ${themeConfig.buttonHover}`}
             title={`Switch to ${mapStyle === 'street' ? 'satellite' : 'street'} view`}
           >
             {mapStyle === 'street' ? (
               <img
                 src="/icons/satellite.png"
                 alt=""
-                className="h-5 w-5 invert"
+                className="h-5 w-5"
+                style={{ filter: theme === 'dark' ? 'invert(1)' : 'none' }}
                 aria-hidden="true"
               />
             ) : (
@@ -1571,16 +1826,20 @@ export default function Home() {
 function MapMarker({
   location,
   animationDelay,
-  isClicked = false
+  isClicked = false,
+  theme = 'dark'
 }: {
   location: LocationAggregate;
   animationDelay: number;
   isClicked?: boolean;
+  theme?: Theme;
 }) {
+  const themeConfig = THEME_CONFIG[theme]
   const [isPressed, setIsPressed] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [ripples, setRipples] = useState<number[]>([])
   const [isExpanded, setIsExpanded] = useState(false)
+  const [expandedNewsItemId, setExpandedNewsItemId] = useState<string | null>(null)
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // Don't stop propagation so click can reach parent
@@ -1623,7 +1882,7 @@ function MapMarker({
 
   const handlePanelClick = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (location.storyCount > 1) {
+    if (location.newsItemCount > 1) {
       setIsExpanded(!isExpanded)
     }
   }
@@ -1643,28 +1902,38 @@ function MapMarker({
     e.stopPropagation()
   }
 
-  // Size based on story count (reduced by 50%)
-  const baseSize = Math.min(6 + location.storyCount * 0.25, 10) * 0.85
+  const toggleNewsItemExpanded = (e: React.MouseEvent, newsItemId: string) => {
+    e.stopPropagation()
+    setExpandedNewsItemId(expandedNewsItemId === newsItemId ? null : newsItemId)
+  }
 
-  // Get primary story for the card
-  const primaryStory = location.stories.find(s => s.mediaUrl) || location.stories[0]
-  const displayTitle = primaryStory?.title || location.name
-  const displaySummary = primaryStory?.summary || `${location.storyCount} stories in this location`
+  // Size based on news item count (reduced by 50%)
+  const baseSize = Math.min(6 + location.newsItemCount * 0.25, 10) * 0.85
+
+  // Get primary news item for the card
+  const primaryNewsItem = location.newsItems.find(s => s.mediaUrl) || location.newsItems[0]
+  const displayTitle = primaryNewsItem?.title || location.name
+  const displaySummary = primaryNewsItem?.summary || `${location.newsItemCount} news items in this location`
 
   // Show panel if hovered OR clicked
   const showPanel = isHovered || isClicked
 
+  const dotShadow = theme === 'dark'
+    ? '0 1px 3px rgba(255,255,255,0.4), inset 0 0 2px rgba(255,255,255,0.2)'
+    : '0 1px 3px rgba(26,26,46,0.4), inset 0 0 2px rgba(255,255,255,0.1)'
+
   return (
     <div className="relative" style={{ zIndex: showPanel ? 1 : 100 }}>
       <div
-        className="bg-white rounded-full transition-all duration-100 ease-out cursor-pointer"
+        className="rounded-full transition-all duration-100 ease-out cursor-pointer"
         style={{
           width: `${baseSize}px`,
           height: `${baseSize}px`,
+          backgroundColor: themeConfig.dotColor,
           animation: `pulse-glow 2.5s ease-in-out infinite`,
           animationDelay: `${animationDelay}s`,
           transform: isPressed ? 'scale(0.75)' : showPanel ? 'scale(1.5)' : 'scale(1)',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.8), inset 0 0 2px rgba(255,255,255,0.3)',
+          boxShadow: dotShadow,
           position: 'relative',
           zIndex: showPanel ? 200 : 100,
         }}
@@ -1689,16 +1958,16 @@ function MapMarker({
             top: '50%',
             transform: 'translateY(-50%)',
             width: isExpanded ? '400px' : '320px',
-            zIndex: 50, // Below other dots (100) but above map
+            zIndex: 50,
             transition: 'width 0.2s ease-out',
-            pointerEvents: 'auto', // Ensure panel captures pointer events
+            pointerEvents: 'auto',
           }}
           onWheel={handlePanelWheel}
           onTouchMove={handlePanelTouchMove}
         >
           <div
-            className={`bg-black/95 backdrop-blur-3xl backdrop-saturate-0 border border-white/40 rounded-xl text-white shadow-2xl transition-all ${
-              location.storyCount > 1 ? 'cursor-pointer hover:border-white/60 hover:bg-black' : ''
+            className={`${themeConfig.panel.bg} backdrop-blur-3xl backdrop-saturate-0 border ${themeConfig.panel.border} rounded-xl ${themeConfig.panel.text} shadow-2xl transition-all ${
+              location.newsItemCount > 1 ? `cursor-pointer ${themeConfig.panel.hoverBorder} ${themeConfig.panel.hoverBg}` : ''
             }`}
             onClick={handlePanelClick}
           >
@@ -1706,10 +1975,10 @@ function MapMarker({
               // Collapsed view - shows primary story
               <div className="p-3 flex items-start gap-3">
                 {/* Thumbnail */}
-                {primaryStory?.mediaUrl ? (
-                  <div className="relative w-24 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800">
+                {primaryNewsItem?.mediaUrl ? (
+                  <div className={`relative w-24 h-16 flex-shrink-0 rounded-lg overflow-hidden ${themeConfig.panel.imagePlaceholder}`}>
                     <img
-                      src={`/api/proxy-image?url=${encodeURIComponent(primaryStory.mediaUrl)}`}
+                      src={`/api/proxy-image?url=${encodeURIComponent(primaryNewsItem.mediaUrl)}`}
                       alt={displayTitle.substring(0, 50)}
                       className="w-full h-full object-cover"
                       onError={(e) => {
@@ -1718,46 +1987,46 @@ function MapMarker({
                     />
                   </div>
                 ) : (
-                  <div className="w-24 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center">
+                  <div className={`w-24 h-16 flex-shrink-0 rounded-lg overflow-hidden ${themeConfig.panel.imagePlaceholder} flex items-center justify-center`}>
                     <img
                       src="/icons/newspaper.png"
                       alt="location"
                       className="w-6 h-6"
-                      style={{ filter: 'brightness(0.5) invert(0.5)' }}
+                      style={{ filter: themeConfig.panel.iconFilter }}
                     />
                   </div>
                 )}
 
                 {/* Text Content */}
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-bold text-gray-100 leading-tight mb-1 line-clamp-2">
+                  <h3 className={`text-sm font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} leading-tight mb-1 line-clamp-2`}>
                     {displayTitle.substring(0, 80)}
                   </h3>
-                  <p className="text-[10px] text-gray-300 leading-relaxed line-clamp-3">
+                  <p className={`text-[10px] ${themeConfig.panel.textMuted} leading-relaxed line-clamp-3`}>
                     {displaySummary.substring(0, 150)}
                   </p>
-                  {(primaryStory?.sourceName || primaryStory?.created) && (
-                    <p className="text-[9px] text-gray-400 mt-1 flex items-center gap-1 flex-wrap">
-                      {primaryStory?.sourceName && (
+                  {(primaryNewsItem?.sourceName || primaryNewsItem?.created) && (
+                    <p className={`text-[9px] ${themeConfig.panel.textFaint} mt-1 flex items-center gap-1 flex-wrap`}>
+                      {primaryNewsItem?.sourceName && (
                         <>
-                          {getSourceIcon(primaryStory.sourceName)}
-                          <span>{primaryStory.sourceName}</span>
+                          <img src="/icons/newspaper.png" alt="" className="inline-block w-3 h-3 align-middle" style={{ filter: themeConfig.panel.iconFilter }} />
+                          <span>{primaryNewsItem.sourceName}</span>
                         </>
                       )}
-                      {primaryStory?.sourceName && primaryStory?.created && (
-                        <span className="text-gray-500">•</span>
+                      {primaryNewsItem?.sourceName && primaryNewsItem?.created && (
+                        <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}>•</span>
                       )}
-                      {primaryStory?.created && (
-                        <span className="text-gray-500">{formatDate(primaryStory.created)}</span>
+                      {primaryNewsItem?.created && (
+                        <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}>{formatDate(primaryNewsItem.created)}</span>
                       )}
                     </p>
                   )}
-                  {location.storyCount > 1 && (
+                  {location.newsItemCount > 1 && (
                     <div className="flex items-center gap-1 mt-1">
-                      <p className="text-[9px] text-white/80">
-                        +{location.storyCount - 1} more {location.storyCount === 2 ? 'story' : 'stories'}
+                      <p className={`text-[9px] ${theme === 'dark' ? 'text-white/80' : 'text-gray-700'}`}>
+                        +{location.newsItemCount - 1} more {location.newsItemCount === 2 ? 'news item' : 'news items'}
                       </p>
-                      <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className={`w-3 h-3 ${theme === 'dark' ? 'text-white/60' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </div>
@@ -1765,84 +2034,98 @@ function MapMarker({
                 </div>
               </div>
             ) : (
-              // Expanded view - shows all stories
+              // Expanded view - shows all news items
               <div className="p-3">
                 {/* Header with close button */}
-                <div className="flex items-start justify-between mb-3 pb-2 border-b border-white/20">
+                <div className={`flex items-start justify-between mb-3 pb-2 border-b ${themeConfig.panel.divider}`}>
                   <div>
-                    <h3 className="text-sm font-bold text-gray-100">{location.name}</h3>
-                    <p className="text-[10px] text-gray-400">{location.storyCount} {location.storyCount === 1 ? 'story' : 'stories'}</p>
+                    <h3 className={`text-sm font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>{location.name}</h3>
+                    <p className={`text-[10px] ${themeConfig.panel.textFaint}`}>{location.newsItemCount} {location.newsItemCount === 1 ? 'news item' : 'news items'}</p>
                   </div>
                   <button
                     onClick={handleCloseExpanded}
-                    className="p-1 hover:bg-white/10 rounded transition-colors"
+                    className={`p-1 ${theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'} rounded transition-colors`}
                     aria-label="Close expanded view"
                   >
-                    <svg className="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={`w-4 h-4 ${theme === 'dark' ? 'text-white/80' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
 
-                {/* Stories list with scroll */}
+                {/* News items list with scroll */}
                 <div className="space-y-3 max-h-96 overflow-y-auto pr-2" style={{
                   scrollbarWidth: 'thin',
-                  scrollbarColor: 'rgba(255,255,255,0.3) transparent'
+                  scrollbarColor: `${themeConfig.panel.scrollbar} transparent`
                 }}>
-                  {location.stories.map((story, index) => (
-                    <div key={story.id || index} className="flex items-start gap-2 pb-3 border-b border-white/10 last:border-0">
-                      {/* Story thumbnail */}
-                      {story.mediaUrl ? (
-                        <div className="relative w-20 h-14 flex-shrink-0 rounded overflow-hidden bg-gray-800">
-                          <img
-                            src={`/api/proxy-image?url=${encodeURIComponent(story.mediaUrl)}`}
-                            alt={story.title?.substring(0, 50) || 'Story image'}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none'
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-20 h-14 flex-shrink-0 rounded overflow-hidden bg-gray-800 flex items-center justify-center">
-                          <img
-                            src="/icons/newspaper.png"
-                            alt="news"
-                            className="w-5 h-5"
-                            style={{ filter: 'brightness(0.5) invert(0.5)' }}
-                          />
-                        </div>
-                      )}
+                  {location.newsItems.map((newsItem, index) => {
+                    const isNewsItemExpanded = expandedNewsItemId === newsItem.id
+                    return (
+                      <div
+                        key={newsItem.id || index}
+                        className={`pb-3 border-b ${themeConfig.panel.dividerFaint} last:border-0 cursor-pointer transition-colors ${newsItem.summary ? `${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-gray-50'}` : ''}`}
+                        onClick={(e) => newsItem.summary && toggleNewsItemExpanded(e, newsItem.id)}
+                      >
+                        <div className="flex items-start gap-2">
+                          {/* News item thumbnail */}
+                          {newsItem.mediaUrl ? (
+                            <div className={`relative w-20 h-14 flex-shrink-0 rounded overflow-hidden ${themeConfig.panel.imagePlaceholder}`}>
+                              <img
+                                src={`/api/proxy-image?url=${encodeURIComponent(newsItem.mediaUrl)}`}
+                                alt={newsItem.title?.substring(0, 50) || 'News item image'}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none'
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className={`w-20 h-14 flex-shrink-0 rounded overflow-hidden ${themeConfig.panel.imagePlaceholder} flex items-center justify-center`}>
+                              <img
+                                src="/icons/newspaper.png"
+                                alt="news"
+                                className="w-5 h-5"
+                                style={{ filter: themeConfig.panel.iconFilter }}
+                              />
+                            </div>
+                          )}
 
-                      {/* Story content */}
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-xs font-semibold text-gray-100 leading-tight mb-1 line-clamp-2">
-                          {story.title || 'Untitled story'}
-                        </h4>
-                        {story.summary && (
-                          <p className="text-[10px] text-gray-300 leading-relaxed line-clamp-2">
-                            {story.summary.substring(0, 120)}
-                          </p>
-                        )}
-                        {(story.sourceName || story.created) && (
-                          <p className="text-[9px] text-gray-400 mt-1 flex items-center gap-1 flex-wrap">
-                            {story.sourceName && (
-                              <>
-                                {getSourceIcon(story.sourceName)}
-                                <span>{story.sourceName}</span>
-                              </>
+                          {/* News item content */}
+                          <div className="flex-1 min-w-0">
+                            <h4 className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} leading-tight mb-1 line-clamp-2`}>
+                              {newsItem.title || 'Untitled'}
+                            </h4>
+                            {newsItem.summary && (
+                              <p className={`text-[10px] ${themeConfig.panel.textMuted} leading-relaxed ${isNewsItemExpanded ? '' : 'line-clamp-2'}`}>
+                                {newsItem.summary}
+                              </p>
                             )}
-                            {story.sourceName && story.created && (
-                              <span className="text-gray-500">•</span>
+                            {(newsItem.sourceName || newsItem.created) && (
+                              <p className={`text-[9px] ${themeConfig.panel.textFaint} mt-1 flex items-center gap-1 flex-wrap`}>
+                                {newsItem.sourceName && (
+                                  <>
+                                    <img src="/icons/newspaper.png" alt="" className="inline-block w-3 h-3 align-middle" style={{ filter: themeConfig.panel.iconFilter }} />
+                                    <span>{newsItem.sourceName}</span>
+                                  </>
+                                )}
+                                {newsItem.sourceName && newsItem.created && (
+                                  <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}>•</span>
+                                )}
+                                {newsItem.created && (
+                                  <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}>{formatDate(newsItem.created)}</span>
+                                )}
+                              </p>
                             )}
-                            {story.created && (
-                              <span className="text-gray-500">{formatDate(story.created)}</span>
+                            {newsItem.summary && (
+                              <div className={`text-[9px] ${theme === 'dark' ? 'text-white/50' : 'text-gray-500'} mt-1`}>
+                                {isNewsItemExpanded ? '▼ Click to collapse' : '▶ Click to expand'}
+                              </div>
                             )}
-                          </p>
-                        )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}

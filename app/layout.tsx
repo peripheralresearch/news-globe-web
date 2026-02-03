@@ -11,10 +11,10 @@ const sourceSerif = Source_Serif_4({
 })
 
 export const metadata: Metadata = {
-  title: 'Peripheral',
+  title: 'The Peripheral',
   description: 'Global message visualization on an interactive 3D globe',
   icons: {
-    icon: '/icons/connections-grey.png',
+    icon: '/icons/peripheral.png',
   },
 }
 

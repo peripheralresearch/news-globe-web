@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Placeholder market image">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0a0a0a"/>
+      <stop offset="1" stop-color="#262626"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#g)"/>
+  <g fill="#e5e5e5" opacity="0.9" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+    <text x="60" y="110" font-size="44" font-weight="700">Market Snapshot</text>
+    <text x="60" y="160" font-size="22" opacity="0.8">Placeholder image for template previews</text>
+  </g>
+  <g transform="translate(60 220)" stroke="#e5e5e5" stroke-width="3" opacity="0.85" fill="none">
+    <path d="M0 300 L120 260 L220 280 L340 200 L460 220 L620 140 L760 160 L900 80 L1080 120" />
+    <line x1="0" y1="300" x2="1080" y2="300" opacity="0.35"/>
+    <line x1="0" y1="0" x2="0" y2="300" opacity="0.35"/>
+  </g>
+</svg>

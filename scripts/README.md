@@ -154,20 +154,20 @@ Copy a `public_url` from Supabase and open it in your browser. It should play th
 
 ```bash
 # Test locally (with dev server running)
-curl http://localhost:3000/api/ice/videos/USA | jq '.videos | length'
+curl http://localhost:3000/api/videos/VE | jq '.videos | length'
 
-# Should return: 15 (or the number of USA videos)
+# Should return: number of Venezuela videos
 ```
 
 ### 5. Test Frontend
 
 1. Start dev server: `npm run dev`
-2. Navigate to `http://localhost:3000/ice`
+2. Navigate to `http://localhost:3000/venezuela`
 3. Map should load with video markers
 4. Click a marker - video should play from OCI CDN URL
 5. Check browser DevTools Network tab:
-   - Should see `/api/ice/videos/USA` request
-   - Should NOT see `/data/USA/videos.json` request
+   - Should see `/api/videos/VE` request
+   - Should NOT see `/data/VE/videos.json` request
 
 ## Troubleshooting
 

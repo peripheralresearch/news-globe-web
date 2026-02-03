@@ -219,9 +219,41 @@ Fetches system messages and announcements.
 }
 ```
 
-### ICE Videos
+### Geolocated Videos
+
+#### GET `/api/videos/[country]`
+
+Fetches geolocated videos for a specific country. Videos are filtered by country code and include location coordinates for mapping.
+
+**URL Parameters:**
+- `country` - ISO 3166-1 alpha-2 country code (e.g., "VE" for Venezuela, "UA" for Ukraine)
+
+**Response:**
+```typescript
+{
+  videos: Array<{
+    id: string
+    title: string
+    channelName: string
+    date: string | null
+    coordinates: [longitude, latitude]
+    videoUrl: string | null
+    sourceUrl?: string
+    description?: string
+  }>
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:3000/api/videos/VE
+```
+
+### ICE Videos (Deprecated)
 
 #### GET `/api/ice/videos/[country]`
+
+**DEPRECATED** - Use `/api/videos/[country]` instead. This endpoint is maintained for backwards compatibility.
 
 Fetches ICE-related videos for a specific country.
 

@@ -39,11 +39,11 @@ interface LocationData {
   entity_type: string;
   location_subtype: string;
   confidence: number;
-  story_count: number;
+  news_item_count: number;
   coordinates: [number, number];  // [longitude, latitude] - from event_location
   default_zoom: number;
   event_location: boolean;        // Indicates this is an event location
-  stories: Array<{
+  news_items: Array<{
     id: string;
     post_id: number;
     title: string | null;
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
 
     // Parse and validate query parameters
     const hoursParam = searchParams.get('hours');
-    const hours = hoursParam ? Math.max(1, Math.min(parseInt(hoursParam, 10), 720)) : 48;
+    const hours = hoursParam ? Math.max(0, Math.min(parseInt(hoursParam, 10), 720)) : 0; // 0 = all time
 
     const limitParam = searchParams.get('limit');
     const maxLocations = limitParam ? Math.max(1, Math.min(parseInt(limitParam, 10), 50)) : 30;
@@ -158,6 +158,9 @@ export async function GET(request: NextRequest) {
         return true;
       });
 
+      // Sort by most recent first
+      uniquePosts.sort((a, b) => new Date(b.post_date).getTime() - new Date(a.post_date).getTime());
+
       const formattedPosts = uniquePosts.map(post => {
         const channelUsername = post.channel_username?.replace(/^@/, '');
         const sourceUrl = channelUsername && post.post_id
@@ -183,11 +186,11 @@ export async function GET(request: NextRequest) {
         entity_type: 'Location',
         location_subtype: loc.location_subtype || loc.location_type,
         confidence: 0.8,
-        story_count: Number(loc.post_count),
+        news_item_count: Number(loc.post_count),
         coordinates: [loc.longitude, loc.latitude] as [number, number],  // event_location coordinates
         default_zoom: loc.default_zoom,
         event_location: loc.event_location ?? true,  // Mark as event location
-        stories: formattedPosts,
+        news_items: formattedPosts,
       } as LocationData;
     });
 

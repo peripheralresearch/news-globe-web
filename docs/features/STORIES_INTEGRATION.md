@@ -402,8 +402,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
 
 1. Check Supabase connection:
    ```bash
-   curl -H "apikey: YOUR_ANON_KEY" \
-     "https://zghbrwbfdoalgzpcnbcm.supabase.co/rest/v1/story?select=*&limit=1"
+   curl -H "apikey: $SUPABASE_ANON_KEY" \
+     "$SUPABASE_URL/rest/v1/story?select=*&limit=1"
    ```
 
 2. Verify environment variables are set

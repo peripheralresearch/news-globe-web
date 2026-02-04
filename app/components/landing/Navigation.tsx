@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 export default function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -22,6 +22,11 @@ export default function Navigation() {
     { label: 'Contact', href: '/contact' },
   ]
 
+  const handleGlobeClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    window.dispatchEvent(new Event('globe-wipe-start'))
+  }, [])
+
   return (
     <nav
       className={`sticky top-0 z-50 border-b transition-all duration-200 ${
@@ -40,6 +45,7 @@ export default function Navigation() {
                 key={link.label}
                 href={link.href}
                 className="group/link relative overflow-hidden text-sm text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors px-1 py-0.5"
+                {...(link.href === '/globe' ? { onClick: handleGlobeClick } : {})}
               >
                 <span className="absolute inset-0 bg-brand-yellow -translate-x-full group-hover/link:translate-x-0 transition-transform duration-300 ease-out" />
                 <span className="relative z-10">{link.label}</span>
@@ -98,7 +104,10 @@ export default function Navigation() {
                   key={link.label}
                   href={link.href}
                   className="group/link relative text-sm text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors overflow-hidden px-1 py-0.5"
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={(e) => {
+                    setIsMobileMenuOpen(false)
+                    if (link.href === '/globe') handleGlobeClick(e)
+                  }}
                 >
                   <span className="absolute inset-0 bg-brand-yellow -translate-x-full group-hover/link:translate-x-0 transition-transform duration-300 ease-out" />
                   <span className="relative z-10">{link.label}</span>

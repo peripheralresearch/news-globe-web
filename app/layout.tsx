@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter, Source_Serif_4 } from 'next/font/google'
 import './globals.css'
+import GlobeWipeOverlay from './components/GlobeWipeOverlay'
 
 const inter = Inter({ subsets: ['latin'] })
 const sourceSerif = Source_Serif_4({
@@ -25,7 +26,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} ${sourceSerif.variable}`}>{children}</body>
+      <body className={`${inter.className} ${sourceSerif.variable}`}>
+        <GlobeWipeOverlay />
+        {children}
+      </body>
     </html>
   )
 }

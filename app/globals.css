@@ -420,3 +420,14 @@ body.fullscreen-map {
   background-color: rgba(255, 255, 255, 0.3);
 }
 
+/* Globe wipe transition */
+@keyframes wipeIn {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
+@keyframes wipeOut {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+

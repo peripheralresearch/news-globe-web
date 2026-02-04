@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import Link from 'next/link'
@@ -81,8 +81,13 @@ export default function DecorativeGlobe() {
     }
   }, [])
 
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    window.dispatchEvent(new Event('globe-wipe-start'))
+  }, [])
+
   return (
-    <Link href="/globe" className="group block relative overflow-hidden" aria-label="Open interactive globe">
+    <Link href="/globe" className="group block relative overflow-hidden" aria-label="Open interactive globe" onClick={handleClick}>
       <div
         ref={containerRef}
         className="w-full h-[250px] md:h-[300px] transition-transform duration-300 ease-out group-hover:scale-110"

@@ -31,11 +31,20 @@ export default function Hero() {
 
           {/* Trust Indicators */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-slate-600 dark:text-neutral-400">
-            <span>{stats.totalStories.toLocaleString()} stories tracked</span>
+            <span className="group/stat relative overflow-hidden px-1 py-0.5 cursor-default">
+              <span className="absolute inset-0 bg-yellow-300 -translate-x-full group-hover/stat:translate-x-0 transition-transform duration-300 ease-out" />
+              <span className="relative z-10">{stats.totalStories.toLocaleString()} stories tracked</span>
+            </span>
             <span className="hidden sm:inline">&bull;</span>
-            <span>{stats.totalNewsItems.toLocaleString()} sources analyzed</span>
+            <span className="group/stat relative overflow-hidden px-1 py-0.5 cursor-default">
+              <span className="absolute inset-0 bg-yellow-300 -translate-x-full group-hover/stat:translate-x-0 transition-transform duration-300 ease-out" />
+              <span className="relative z-10">{stats.totalNewsItems.toLocaleString()} sources analyzed</span>
+            </span>
             <span className="hidden sm:inline">&bull;</span>
-            <span>Updated every 15 minutes</span>
+            <span className="group/stat relative overflow-hidden px-1 py-0.5 cursor-default">
+              <span className="absolute inset-0 bg-yellow-300 -translate-x-full group-hover/stat:translate-x-0 transition-transform duration-300 ease-out" />
+              <span className="relative z-10">Updated every 15 minutes</span>
+            </span>
           </div>
         </div>
       </div>

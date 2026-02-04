@@ -39,9 +39,10 @@ export default function Navigation() {
               <Link
                 key={link.label}
                 href={link.href}
-                className="text-sm text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                className="group/link relative overflow-hidden text-sm text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors px-1 py-0.5"
               >
-                {link.label}
+                <span className="absolute inset-0 bg-yellow-300 -translate-x-full group-hover/link:translate-x-0 transition-transform duration-300 ease-out" />
+                <span className="relative z-10">{link.label}</span>
               </Link>
             ))}
           </div>
@@ -63,9 +64,10 @@ export default function Navigation() {
           <div className="hidden md:block">
             <a
               href="mailto:hello@theperipheral.org"
-              className="inline-block bg-black text-white text-sm font-medium px-6 py-2 rounded-full hover:bg-slate-800 transition-colors"
+              className="inline-block group/btn relative overflow-hidden bg-black text-white text-sm font-medium px-6 py-2"
             >
-              Get Early Access
+              <span className="absolute inset-0 bg-yellow-300 -translate-x-full group-hover/btn:translate-x-0 transition-transform duration-300 ease-out" />
+              <span className="relative z-10 group-hover/btn:text-black transition-colors duration-300">Get Early Access</span>
             </a>
           </div>
 
@@ -95,17 +97,19 @@ export default function Navigation() {
                 <Link
                   key={link.label}
                   href={link.href}
-                  className="text-sm text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                  className="group/link relative text-sm text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors overflow-hidden px-1 py-0.5"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  {link.label}
+                  <span className="absolute inset-0 bg-yellow-300 -translate-x-full group-hover/link:translate-x-0 transition-transform duration-300 ease-out" />
+                  <span className="relative z-10">{link.label}</span>
                 </Link>
               ))}
               <a
                 href="mailto:hello@theperipheral.org"
-                className="inline-block bg-black text-white text-sm font-medium px-6 py-2 rounded-full hover:bg-slate-800 transition-colors text-center"
+                className="inline-block group/btn relative overflow-hidden bg-black text-white text-sm font-medium px-6 py-2 text-center"
               >
-                Get Early Access
+                <span className="absolute inset-0 bg-yellow-300 -translate-x-full group-hover/btn:translate-x-0 transition-transform duration-300 ease-out" />
+                <span className="relative z-10 group-hover/btn:text-black transition-colors duration-300">Get Early Access</span>
               </a>
             </div>
           </div>

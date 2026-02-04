@@ -88,6 +88,54 @@ export default function LandingPage() {
       <Navigation />
       <DecorativeGlobe />
       <Hero />
+
+      {/* Featured Articles */}
+      <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Main Feature Article */}
+            <div className="md:row-span-2 group">
+              <div className="bg-slate-100 aspect-[4/3] rounded-lg mb-4" />
+              <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Featured</span>
+              <h3 className="text-2xl font-bold text-slate-900 mt-1 mb-2 group-hover:underline">
+                Headline for the main feature article goes here
+              </h3>
+              <p className="text-slate-600 text-sm leading-relaxed">
+                A brief summary of the lead story. This placeholder represents the primary editorial
+                piece that anchors the front page layout.
+              </p>
+              <span className="text-xs text-slate-400 mt-3 block">12 sources &bull; 2h ago</span>
+            </div>
+
+            {/* Secondary Article */}
+            <div className="group">
+              <div className="bg-slate-100 aspect-[16/9] rounded-lg mb-4" />
+              <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Analysis</span>
+              <h3 className="text-lg font-bold text-slate-900 mt-1 mb-2 group-hover:underline">
+                Secondary story headline sits here
+              </h3>
+              <p className="text-slate-600 text-sm leading-relaxed">
+                Supporting context for the second story with a concise summary of verified developments.
+              </p>
+              <span className="text-xs text-slate-400 mt-3 block">8 sources &bull; 4h ago</span>
+            </div>
+
+            {/* Tertiary Article */}
+            <div className="group">
+              <div className="bg-slate-100 aspect-[16/9] rounded-lg mb-4" />
+              <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Briefing</span>
+              <h3 className="text-lg font-bold text-slate-900 mt-1 mb-2 group-hover:underline">
+                Third story headline placed here
+              </h3>
+              <p className="text-slate-600 text-sm leading-relaxed">
+                A short intelligence briefing summarising key signals from multiple open sources.
+              </p>
+              <span className="text-xs text-slate-400 mt-3 block">5 sources &bull; 6h ago</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <StatsBanner />
       <Footer />
     </main>

@@ -32,7 +32,7 @@ export default function Navigation() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {/* Top row: nav links | logo centered | CTA */}
-        <div className="relative flex items-center justify-between h-16">
+        <div className="relative flex items-center justify-between h-20">
           {/* Left: Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
@@ -51,10 +51,10 @@ export default function Navigation() {
             href="/"
             className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center"
           >
-            <span className="text-xl md:text-2xl font-bold tracking-widest uppercase text-slate-900 dark:text-white">
+            <span className="text-xl md:text-2xl font-bold tracking-widest uppercase text-slate-900 dark:text-white bg-yellow-300 px-3 py-1">
               The Peripheral
             </span>
-            <span className="text-[10px] md:text-xs tracking-[0.2em] uppercase text-slate-500 dark:text-neutral-500">
+            <span className="text-[10px] md:text-xs tracking-[0.2em] uppercase text-slate-500 dark:text-neutral-500 mt-2">
               From noise to knowledge
             </span>
           </Link>
@@ -63,7 +63,7 @@ export default function Navigation() {
           <div className="hidden md:block">
             <a
               href="mailto:hello@theperipheral.org"
-              className="inline-block bg-yellow-400 text-black text-sm font-medium px-6 py-2 rounded-full hover:bg-yellow-500 transition-colors"
+              className="inline-block bg-black text-white text-sm font-medium px-6 py-2 rounded-full hover:bg-slate-800 transition-colors"
             >
               Get Early Access
             </a>
@@ -103,7 +103,7 @@ export default function Navigation() {
               ))}
               <a
                 href="mailto:hello@theperipheral.org"
-                className="inline-block bg-yellow-400 text-black text-sm font-medium px-6 py-2 rounded-full hover:bg-yellow-500 transition-colors text-center"
+                className="inline-block bg-black text-white text-sm font-medium px-6 py-2 rounded-full hover:bg-slate-800 transition-colors text-center"
               >
                 Get Early Access
               </a>

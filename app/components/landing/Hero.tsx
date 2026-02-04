@@ -25,7 +25,7 @@ export default function Hero() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="max-w-4xl mx-auto text-center">
           {/* Subheading */}
-          <p className="text-lg md:text-xl text-slate-600 dark:text-neutral-400 mb-6 max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl text-slate-600 dark:text-neutral-400 mb-10 max-w-2xl mx-auto">
             Evidence-first intelligence from global conflicts. Structured, verified, source-linked.
           </p>
 

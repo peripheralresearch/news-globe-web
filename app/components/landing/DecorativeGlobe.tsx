@@ -27,12 +27,14 @@ export default function DecorativeGlobe() {
 
     mapRef.current = map
 
-    // Hide Mapbox logo
+    // Hide Mapbox logo and disable focus trap
     map.on('load', () => {
       const logo = containerRef.current?.querySelector('.mapboxgl-ctrl-logo')
       if (logo) (logo as HTMLElement).style.display = 'none'
       const attrib = containerRef.current?.querySelector('.mapboxgl-ctrl-attrib')
       if (attrib) (attrib as HTMLElement).style.display = 'none'
+      const canvas = containerRef.current?.querySelector('canvas')
+      if (canvas) canvas.setAttribute('tabindex', '-1')
     })
 
     map.on('style.load', () => {

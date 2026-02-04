@@ -41,7 +41,7 @@ export default function Navigation() {
                 href={link.href}
                 className="group/link relative overflow-hidden text-sm text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors px-1 py-0.5"
               >
-                <span className="absolute inset-0 bg-yellow-300 -translate-x-full group-hover/link:translate-x-0 transition-transform duration-300 ease-out" />
+                <span className="absolute inset-0 bg-brand-yellow -translate-x-full group-hover/link:translate-x-0 transition-transform duration-300 ease-out" />
                 <span className="relative z-10">{link.label}</span>
               </Link>
             ))}
@@ -52,7 +52,7 @@ export default function Navigation() {
             href="/"
             className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center"
           >
-            <span className="text-xl md:text-2xl font-bold tracking-widest uppercase text-slate-900 dark:text-white bg-yellow-300 px-3 py-1">
+            <span className="text-xl md:text-2xl font-bold tracking-widest uppercase text-slate-900 dark:text-white bg-brand-yellow px-3 py-1">
               The Peripheral
             </span>
             <span className="text-[10px] md:text-xs tracking-[0.2em] uppercase text-slate-500 dark:text-neutral-500 mt-2">
@@ -66,8 +66,8 @@ export default function Navigation() {
               href="mailto:hello@theperipheral.org"
               className="inline-block group/btn relative overflow-hidden bg-black text-white text-sm font-medium px-6 py-2"
             >
-              <span className="absolute inset-0 bg-yellow-300 -translate-x-full group-hover/btn:translate-x-0 transition-transform duration-300 ease-out" />
-              <span className="relative z-10 group-hover/btn:text-black transition-colors duration-300">Get Early Access</span>
+              <span className="absolute inset-0 bg-brand-yellow -translate-x-full group-hover/btn:translate-x-0 transition-transform duration-300 ease-out" />
+              <span className="relative z-10 group-hover/btn:text-black transition-colors duration-300">Join Waitlist</span>
             </a>
           </div>
 
@@ -100,7 +100,7 @@ export default function Navigation() {
                   className="group/link relative text-sm text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors overflow-hidden px-1 py-0.5"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  <span className="absolute inset-0 bg-yellow-300 -translate-x-full group-hover/link:translate-x-0 transition-transform duration-300 ease-out" />
+                  <span className="absolute inset-0 bg-brand-yellow -translate-x-full group-hover/link:translate-x-0 transition-transform duration-300 ease-out" />
                   <span className="relative z-10">{link.label}</span>
                 </Link>
               ))}
@@ -108,8 +108,8 @@ export default function Navigation() {
                 href="mailto:hello@theperipheral.org"
                 className="inline-block group/btn relative overflow-hidden bg-black text-white text-sm font-medium px-6 py-2 text-center"
               >
-                <span className="absolute inset-0 bg-yellow-300 -translate-x-full group-hover/btn:translate-x-0 transition-transform duration-300 ease-out" />
-                <span className="relative z-10 group-hover/btn:text-black transition-colors duration-300">Get Early Access</span>
+                <span className="absolute inset-0 bg-brand-yellow -translate-x-full group-hover/btn:translate-x-0 transition-transform duration-300 ease-out" />
+                <span className="relative z-10 group-hover/btn:text-black transition-colors duration-300">Join Waitlist</span>
               </a>
             </div>
           </div>

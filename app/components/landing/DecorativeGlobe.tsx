@@ -82,10 +82,10 @@ export default function DecorativeGlobe() {
   }, [])
 
   return (
-    <Link href="/globe" className="block relative" aria-label="Open interactive globe">
+    <Link href="/globe" className="group block relative overflow-hidden" aria-label="Open interactive globe">
       <div
         ref={containerRef}
-        className="w-full h-[250px] md:h-[300px]"
+        className="w-full h-[250px] md:h-[300px] transition-transform duration-300 ease-out group-hover:scale-110"
         style={{ cursor: 'pointer' }}
       />
       {/* Fade edges into white background */}

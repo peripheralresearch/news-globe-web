@@ -1,8 +1,33 @@
 import { Navigation, NewsTicker, Footer } from '@/app/components/landing'
+import { Metadata } from 'next'
+import JsonLd from '@/app/components/JsonLd'
+import { buildPageMetadata } from '@/lib/seo/metadata'
+import { getSiteUrl } from '@/lib/seo/baseUrl'
+import { webPageJsonLd, organizationJsonLd, breadcrumbJsonLd } from '@/lib/seo/jsonld'
+
+export const metadata: Metadata = buildPageMetadata({
+  title: 'About — The Peripheral',
+  description: 'The Peripheral is an evidence-first intelligence platform that transforms global conflict reporting into structured, verified, source-linked knowledge.',
+  path: '/about',
+})
 
 export default function AboutPage() {
+  const siteUrl = getSiteUrl()
+
   return (
     <main className="min-h-screen bg-white dark:bg-black">
+      <JsonLd data={[
+        webPageJsonLd({
+          url: `${siteUrl}/about`,
+          name: 'About — The Peripheral',
+          description: 'The Peripheral is an evidence-first intelligence platform that transforms global conflict reporting into structured, verified, source-linked knowledge.',
+        }),
+        organizationJsonLd({ contactEmail: 'hello@theperipheral.org' }),
+        breadcrumbJsonLd([
+          { name: 'Home', itemUrl: siteUrl },
+          { name: 'About', itemUrl: `${siteUrl}/about` },
+        ]),
+      ]} />
       <Navigation />
       <NewsTicker />
 

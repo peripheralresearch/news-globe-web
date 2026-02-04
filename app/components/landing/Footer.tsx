@@ -6,7 +6,7 @@ export default function Footer() {
   const footerLinks = [
     { label: 'About', href: '/about' },
     { label: 'Intelligence', href: '/stories' },
-    { label: 'Globe', href: '/map' },
+    { label: 'Globe', href: '/globe' },
     { label: 'Contact', href: '/contact' },
   ]
 

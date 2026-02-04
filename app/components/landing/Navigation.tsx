@@ -17,7 +17,7 @@ export default function Navigation() {
 
   const navLinks = [
     { label: 'Intelligence', href: '/stories' },
-    { label: 'Globe', href: '/map' },
+    { label: 'Globe', href: '/globe' },
     { label: 'About', href: '/about' },
     { label: 'Contact', href: '/contact' },
   ]
@@ -63,7 +63,7 @@ export default function Navigation() {
           <div className="hidden md:block">
             <a
               href="mailto:hello@theperipheral.org"
-              className="inline-block bg-blue-600 dark:bg-blue-400 text-white dark:text-black text-sm font-medium px-6 py-2 rounded-full hover:bg-blue-700 dark:hover:bg-blue-300 transition-colors"
+              className="inline-block bg-yellow-400 text-black text-sm font-medium px-6 py-2 rounded-full hover:bg-yellow-500 transition-colors"
             >
               Get Early Access
             </a>
@@ -103,7 +103,7 @@ export default function Navigation() {
               ))}
               <a
                 href="mailto:hello@theperipheral.org"
-                className="inline-block bg-blue-600 dark:bg-blue-400 text-white dark:text-black text-sm font-medium px-6 py-2 rounded-full hover:bg-blue-700 dark:hover:bg-blue-300 transition-colors text-center"
+                className="inline-block bg-yellow-400 text-black text-sm font-medium px-6 py-2 rounded-full hover:bg-yellow-500 transition-colors text-center"
               >
                 Get Early Access
               </a>

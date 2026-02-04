@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     'max-snippet': -1,
   },
   alternates: {
-    canonical: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://peripheral.local'}/venezuela`,
+    canonical: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://peripheral.local'}/stories/venezuela`,
   },
 }
 
@@ -51,7 +51,7 @@ export default function VenezuelaPage() {
   const liveBlogJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'LiveBlogPosting',
-    '@id': `${baseUrl}/venezuela`,
+    '@id': `${baseUrl}/stories/venezuela`,
     headline: 'Venezuela Crisis: Live Updates & Verified Footage',
     description: 'Real-time coverage of the Venezuela crisis with interactive maps, geolocated video evidence, and verified OSINT analysis.',
     datePublished: COVERAGE_START,
@@ -82,7 +82,7 @@ export default function VenezuelaPage() {
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `${baseUrl}/venezuela`,
+      '@id': `${baseUrl}/stories/venezuela`,
     },
     // Live blog updates - most recent first
     liveBlogUpdate: [
@@ -134,7 +134,7 @@ export default function VenezuelaPage() {
         '@type': 'ListItem',
         position: 2,
         name: 'Venezuela',
-        item: `${baseUrl}/venezuela`,
+        item: `${baseUrl}/stories/venezuela`,
       },
     ],
   }

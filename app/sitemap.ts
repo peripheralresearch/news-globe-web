@@ -11,7 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     {
-      url: `${baseUrl}/venezuela`,
+      url: `${baseUrl}/stories/venezuela`,
       lastModified: new Date(),
       changeFrequency: 'hourly',  // Live hub - frequent updates
       priority: 0.95,  // Highest priority for live coverage
@@ -29,22 +29,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     },
     {
-      url: `${baseUrl}/iran`,
+      url: `${baseUrl}/stories/iran`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.7,
     },
     {
-      url: `${baseUrl}/ice`,
+      url: `${baseUrl}/stories/ice`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/map`,
-      lastModified: new Date(),
-      changeFrequency: 'hourly',  // Live intelligence map
-      priority: 0.85,
     },
     {
       url: `${baseUrl}/newspaper`,

@@ -53,14 +53,14 @@ export default function StatsBanner() {
     : []
 
   return (
-    <section className="py-16 bg-slate-900 dark:bg-neutral-950">
+    <section className="py-16 bg-brand-yellow">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {isLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="text-center">
-                <div className="h-10 bg-slate-800 dark:bg-neutral-900 rounded mb-2 animate-pulse" />
-                <div className="h-5 bg-slate-800 dark:bg-neutral-900 rounded animate-pulse" />
+                <div className="h-10 bg-brand-yellow/70 rounded mb-2 animate-pulse" />
+                <div className="h-5 bg-brand-yellow/70 rounded animate-pulse" />
               </div>
             ))}
           </div>
@@ -68,10 +68,10 @@ export default function StatsBanner() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {statItems.map((item, index) => (
               <div key={index} className="text-center">
-                <div className="text-3xl font-bold text-white mb-1">
+                <div className="text-3xl font-bold text-black mb-1">
                   {item.value}
                 </div>
-                <div className="text-sm text-slate-400">
+                <div className="text-sm text-black/70">
                   {item.label}
                 </div>
               </div>

@@ -64,6 +64,8 @@ export default function ICEPage() {
     })
 
     map.current.on('load', () => {
+      // Remove canvas from tab order to prevent focus lock
+      mapContainer.current?.querySelector('canvas')?.setAttribute('tabindex', '-1')
       console.log('✅ Map loaded')
     })
 

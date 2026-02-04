@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { ThemeProvider, useTheme } from '../contexts/ThemeContext'
+import { ThemeProvider, useTheme } from '@/app/contexts/ThemeContext'
 
 // ISO 3166-1 alpha-3 code for Venezuela
 const VENEZUELA_ISO = 'VEN'
@@ -415,6 +415,9 @@ function VenezuelaArticleContent() {
 
         map.current.on('load', () => {
           if (!map.current) return
+
+          // Remove canvas from tab order to prevent focus lock
+          mapContainer.current?.querySelector('canvas')?.setAttribute('tabindex', '-1')
 
           // Add Mapbox country boundaries source
           map.current.addSource('country-boundaries', {

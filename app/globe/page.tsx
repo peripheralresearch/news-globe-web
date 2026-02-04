@@ -308,6 +308,11 @@ function formatDate(dateString: string): string {
 
 
 export default function Home() {
+  // Signal GlobeWipeOverlay that the page has arrived so it can wipe out
+  useEffect(() => {
+    window.dispatchEvent(new Event('globe-wipe-arrived'))
+  }, [])
+
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
   const eventLocationsRef = useRef<FeatureCollection<Point>>({ type: 'FeatureCollection', features: [] })

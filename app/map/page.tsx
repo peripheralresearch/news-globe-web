@@ -913,6 +913,9 @@ export default function Home() {
         map.current.on('load', async () => {
           if (!map.current) return
 
+          // Remove canvas from tab order to prevent focus lock
+          mapContainer.current?.querySelector('canvas')?.setAttribute('tabindex', '-1')
+
           // Ensure globe projection is set
             map.current.setProjection('globe')
 

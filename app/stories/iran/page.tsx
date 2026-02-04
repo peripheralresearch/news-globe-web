@@ -190,6 +190,9 @@ export default function IranArticlePage() {
         map.current.on('load', () => {
           if (!map.current) return
 
+          // Remove canvas from tab order to prevent focus lock
+          mapContainer.current?.querySelector('canvas')?.setAttribute('tabindex', '-1')
+
           // Add Mapbox country boundaries source
           map.current.addSource('country-boundaries', {
             type: 'vector',

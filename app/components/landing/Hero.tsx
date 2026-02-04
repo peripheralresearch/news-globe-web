@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 
-function useCountUp(target: number, duration = 1800) {
+function useCountUp(target: number, duration = 2300) {
   const [value, setValue] = useState(0)
   const rafRef = useRef<number>(0)
 
@@ -11,7 +11,7 @@ function useCountUp(target: number, duration = 1800) {
     const start = performance.now()
     function tick(now: number) {
       const t = Math.min((now - start) / duration, 1)
-      const eased = 1 - Math.pow(1 - t, 3) // ease-out cubic
+      const eased = 1 - Math.pow(1 - t, 5) // ease-out quint — long tail slowdown
       setValue(Math.round(eased * target))
       if (t < 1) rafRef.current = requestAnimationFrame(tick)
     }

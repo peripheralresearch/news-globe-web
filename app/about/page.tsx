@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { Navigation, Footer } from '@/app/components/landing'
 import { Metadata } from 'next'
 import JsonLd from '@/app/components/JsonLd'
@@ -30,12 +31,21 @@ export default function AboutPage() {
       ]} />
       <Navigation />
 
-      <article className="max-w-3xl mx-auto px-4 sm:px-6 py-16 md:py-24">
-        <h1 className="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white mb-8">
-          About The Peripheral
+      <article className="max-w-3xl mx-auto px-4 sm:px-6 pt-6 md:pt-10 pb-16 md:pb-24">
+        <Image
+          src="/images/globe-low-poly.png"
+          alt="A low-poly dark hand holding a golden globe"
+          width={1024}
+          height={1024}
+          className="w-full max-w-xs mx-auto mb-8"
+          priority
+        />
+
+        <h1 className="text-2xl md:text-4xl font-bold text-slate-900 dark:text-white mb-8 text-center">
+          Our Mission Statement
         </h1>
 
-        <div className="space-y-6 text-lg text-slate-600 dark:text-neutral-400 leading-relaxed">
+        <div className="space-y-5 text-base text-slate-600 dark:text-neutral-400 leading-relaxed">
           <p>
             The Peripheral is an evidence-first intelligence platform that transforms the noise of
             global conflict reporting into structured, verified, source-linked knowledge.
@@ -47,7 +57,7 @@ export default function AboutPage() {
             the world.
           </p>
 
-          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white pt-4">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white pt-4 text-center">
             How we work
           </h2>
 
@@ -63,7 +73,7 @@ export default function AboutPage() {
             track who reported it, and surface patterns that emerge from the data.
           </p>
 
-          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white pt-4">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white pt-4 text-center">
             Who it&apos;s for
           </h2>
 
@@ -73,7 +83,7 @@ export default function AboutPage() {
             cut through information noise to find what actually happened.
           </p>
 
-          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white pt-4">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white pt-4 text-center">
             Open source intelligence
           </h2>
 
@@ -90,12 +100,12 @@ export default function AboutPage() {
       {/* Mission Statement */}
       <article className="max-w-3xl mx-auto px-4 sm:px-6 pb-16 md:pb-24">
         <div className="border-t border-slate-200 dark:border-neutral-800 pt-16">
-          <h2 className="text-2xl md:text-4xl font-bold text-slate-900 dark:text-white mb-8">
+          <h2 className="text-xl md:text-3xl font-bold text-slate-900 dark:text-white mb-8 text-center">
             Planning for the Post-Truth Era and Beyond
           </h2>
 
-          <div className="space-y-6 text-lg text-slate-600 dark:text-neutral-400 leading-relaxed">
-            <h3 className="text-xl font-semibold text-slate-900 dark:text-white pt-4">
+          <div className="space-y-5 text-base text-slate-600 dark:text-neutral-400 leading-relaxed">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white pt-4 text-center">
               The Mission
             </h3>
 
@@ -113,7 +123,7 @@ export default function AboutPage() {
               purpose.
             </p>
 
-            <h3 className="text-xl font-semibold text-slate-900 dark:text-white pt-4">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white pt-4 text-center">
               The Problem We Face
             </h3>
 
@@ -163,7 +173,7 @@ export default function AboutPage() {
               the full picture have little incentive to share their methods.
             </p>
 
-            <h3 className="text-xl font-semibold text-slate-900 dark:text-white pt-4">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white pt-4 text-center">
               What We Believe
             </h3>
 
@@ -213,7 +223,7 @@ export default function AboutPage() {
               inference should be auditable and correctable.
             </p>
 
-            <h3 className="text-xl font-semibold text-slate-900 dark:text-white pt-4">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white pt-4 text-center">
               The Opportunity
             </h3>
 
@@ -250,7 +260,7 @@ export default function AboutPage() {
               in the world.
             </p>
 
-            <h3 className="text-xl font-semibold text-slate-900 dark:text-white pt-4">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white pt-4 text-center">
               The Risks We Take Seriously
             </h3>
 
@@ -307,7 +317,7 @@ export default function AboutPage() {
               reproducible. We are building infrastructure for an ecosystem, not a walled garden.
             </p>
 
-            <h3 className="text-xl font-semibold text-slate-900 dark:text-white pt-4">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white pt-4 text-center">
               How We Approach the Work
             </h3>
 
@@ -350,7 +360,7 @@ export default function AboutPage() {
               believe about contested questions.
             </p>
 
-            <h3 className="text-xl font-semibold text-slate-900 dark:text-white pt-4">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white pt-4 text-center">
               The Path Forward
             </h3>
 

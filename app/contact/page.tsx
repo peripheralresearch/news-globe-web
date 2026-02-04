@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { Navigation, Footer } from '@/app/components/landing'
 
 const contacts = [
@@ -24,12 +25,20 @@ export default function ContactPage() {
       <Navigation />
 
       {/* Hero */}
-      <section className="bg-brand-yellow py-16 md:py-24">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6">
-          <h1 className="text-3xl md:text-5xl font-bold text-black mb-4">
+      <section className="pt-6 md:pt-10 pb-16 md:pb-24">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+          <Image
+            src="/images/letter-lowpoly.png"
+            alt="A low-poly dark hand holding a yellow envelope"
+            width={1024}
+            height={1024}
+            className="w-full max-w-xs mx-auto mb-8"
+            priority
+          />
+          <h1 className="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4">
             Get in touch
           </h1>
-          <p className="text-lg text-black/70">
+          <p className="text-lg text-slate-500 dark:text-neutral-400">
             Reach the team behind The Peripheral.
           </p>
         </div>

@@ -29,18 +29,6 @@ interface BreadcrumbItem {
   itemUrl: string
 }
 
-interface NewsArticleOptions {
-  url: string
-  headline: string
-  description: string
-  datePublished: string
-  dateModified?: string
-  image?: string | string[]
-  authorName?: string
-  publisherName?: string
-  publisherLogoUrl?: string
-}
-
 // ── Schema builders ───────────────────────────────────────────
 
 export function webSiteJsonLd(opts: WebSiteOptions = {}) {
@@ -112,28 +100,3 @@ export function breadcrumbJsonLd(items: BreadcrumbItem[]) {
   }
 }
 
-export function newsArticleJsonLd(opts: NewsArticleOptions) {
-  const siteUrl = getSiteUrl()
-  const schema: Record<string, unknown> = {
-    '@context': 'https://schema.org',
-    '@type': 'NewsArticle',
-    headline: opts.headline,
-    description: opts.description,
-    url: opts.url,
-    datePublished: opts.datePublished,
-    publisher: {
-      '@type': 'NewsMediaOrganization',
-      name: opts.publisherName ?? 'The Peripheral',
-      logo: {
-        '@type': 'ImageObject',
-        url: opts.publisherLogoUrl ?? `${siteUrl}/icons/peripheral.png`,
-      },
-    },
-  }
-  if (opts.dateModified) schema.dateModified = opts.dateModified
-  if (opts.image) schema.image = opts.image
-  if (opts.authorName) {
-    schema.author = { '@type': 'Person', name: opts.authorName }
-  }
-  return schema
-}

@@ -53,14 +53,14 @@ export default function StatsBanner() {
     : []
 
   return (
-    <section className="py-16 bg-yellow-300">
+    <section className="py-16 bg-brand-yellow">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {isLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="text-center">
-                <div className="h-10 bg-yellow-400 rounded mb-2 animate-pulse" />
-                <div className="h-5 bg-yellow-400 rounded animate-pulse" />
+                <div className="h-10 bg-brand-yellow/70 rounded mb-2 animate-pulse" />
+                <div className="h-5 bg-brand-yellow/70 rounded animate-pulse" />
               </div>
             ))}
           </div>

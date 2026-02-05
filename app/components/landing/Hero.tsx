@@ -47,7 +47,7 @@ export default function Hero() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="max-w-4xl mx-auto text-center">
           {/* Subheading */}
-          <p className="text-lg md:text-xl text-slate-600 dark:text-neutral-400 mb-10 max-w-2xl mx-auto">
+          <p className="text-base md:text-lg text-slate-600 dark:text-neutral-400 mb-10 max-w-2xl mx-auto">
             Open&#8209;Source Intelligence from the edge of the world—where signals surface first.
           </p>
 

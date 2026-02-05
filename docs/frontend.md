@@ -16,23 +16,32 @@ This project uses **Next.js 14 with App Router**, React 18, and TypeScript for a
 
 ```
 app/                              # Next.js App Router
-├── page.tsx                     # Main globe visualization component
-├── layout.tsx                   # Root layout with metadata
-├── globals.css                  # Global styles (Tailwind)
+├── page.tsx                     # Landing page
+├── layout.tsx                   # Root layout with metadata + GlobeWipeOverlay
+├── globals.css                  # Global styles (Tailwind + wipe keyframes)
 ├── api/                         # API routes (server-side)
 │   ├── sentinel/globe/          # Globe data endpoints
 │   ├── stories/                 # Story endpoints
 │   └── proxy-image/             # Image proxy service
 ├── components/                  # Shared React components
-│   ├── StoriesFeed.tsx         # Story feed display
-│   ├── ErrorBoundary.tsx       # Error handling
-│   └── globe/                  # Globe-specific components
-└── [feature]/                   # Feature pages
-    ├── stories/page.tsx        # Stories feed view
-    ├── chat/page.tsx           # Chat interface
-    ├── venezuela/page.tsx      # Venezuela tracking
-    ├── iran/page.tsx           # Iran tracking
-    └── ice/page.tsx            # ICE video tracking
+│   ├── GlobeWipeOverlay.tsx    # Yellow wipe transition for Globe navigation
+│   └── landing/                # Landing page components
+│       ├── Navigation.tsx      # Sticky nav with Globe wipe trigger
+│       ├── Hero.tsx            # Subheading + trust indicators
+│       ├── DecorativeGlobe.tsx # Non-interactive Mapbox globe with wipe trigger
+│       ├── StatsBanner.tsx     # Platform statistics banner
+│       ├── Footer.tsx          # Site footer
+│       └── index.ts            # Barrel exports
+├── globe/page.tsx               # Interactive 3D globe visualization
+├── about/page.tsx               # Mission statement page
+├── contact/page.tsx             # Contact page
+├── stories/                     # Story pages
+│   ├── page.tsx                # OSINT source directory
+│   ├── iran/page.tsx           # Iran tracking
+│   ├── venezuela/              # Venezuela tracking
+│   └── ice/page.tsx            # ICE video tracking
+├── map/page.tsx                 # Alternative map view
+└── chat/page.tsx                # Chat interface
 
 lib/                            # Utilities & configuration
 ├── supabase/                   # Database clients
@@ -84,9 +93,21 @@ lib/                            # Utilities & configuration
 
 ## Key Components
 
-### Globe Visualization (`app/page.tsx`)
+### Globe Wipe Transition (`app/components/GlobeWipeOverlay.tsx`)
 
-The main globe component (1855 lines) handles:
+A full-screen brand-yellow overlay that plays a left-to-right wipe animation when navigating to the Globe page. Coordinated via custom DOM events:
+
+1. Click Globe link (Navigation) or decorative globe → dispatches `globe-wipe-start`
+2. Overlay wipes in (translateX -100% → 0) over 500ms
+3. On `animationend`, calls `router.push('/globe')`
+4. Globe page mounts, dispatches `globe-wipe-arrived`
+5. Overlay wipes out (translateX 0 → 100%) over 500ms, then hides
+
+CSS keyframes (`wipeIn`, `wipeOut`) are defined in `globals.css`. The overlay is rendered in `layout.tsx` so it persists across route changes.
+
+### Globe Visualization (`app/globe/page.tsx`)
+
+The interactive globe component handles:
 
 - **Mapbox GL Integration**: Globe projection with custom layers
 - **Animation System**:

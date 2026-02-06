@@ -62,7 +62,7 @@ export default function Navigation() {
               The Peripheral
             </span>
             <span className="text-[10px] md:text-xs tracking-[0.2em] uppercase text-slate-500 dark:text-neutral-500 mt-2">
-              From noise to knowledge
+              The Truth is out of focus
             </span>
           </Link>
 

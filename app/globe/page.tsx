@@ -308,11 +308,6 @@ function formatDate(dateString: string): string {
 
 
 export default function Home() {
-  // Signal GlobeWipeOverlay that the page has arrived so it can wipe out
-  useEffect(() => {
-    window.dispatchEvent(new Event('globe-wipe-arrived'))
-  }, [])
-
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
   const eventLocationsRef = useRef<FeatureCollection<Point>>({ type: 'FeatureCollection', features: [] })
@@ -821,7 +816,7 @@ export default function Home() {
   // Load globe data
   const fetchGlobePage = useCallback(async (limit: number) => {
     try {
-      const response = await fetch(`/api/sentinel/globe?limit=${limit}&hours=0`)
+      const response = await fetch(`/api/sentinel/globe?limit=${limit}&hours=24`)
       if (!response.ok) {
         console.error(`Globe API (limit=${limit}) responded with ${response.status}`)
         return null
@@ -902,6 +897,9 @@ export default function Home() {
       // Set initial data immediately so UI appears
       setGlobeData(initialData)
       globeDataRef.current = initialData
+
+      // Signal overlay that data is loaded - trigger wipe-out animation
+      window.dispatchEvent(new Event('globe-wipe-arrived'))
 
       fetchGlobePage(FULL_GLOBE_LIMIT)
         .then(fullData => {

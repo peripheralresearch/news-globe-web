@@ -55,9 +55,11 @@ export default function GlobeWipeOverlay() {
           : undefined,
       }}
     >
-      {/* Minimal loading indicator - pulsing dot */}
+      {/* Minimal loading indicator - spinning wheel */}
       {phase === 'loading' && (
-        <div className="w-3 h-3 bg-black/20 rounded-full animate-pulse" />
+        <div
+          className="w-5 h-5 border-2 border-black/10 border-t-black/40 rounded-full animate-spin"
+        />
       )}
     </div>
   )

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-type Phase = 'idle' | 'wipe-in' | 'wipe-out'
+type Phase = 'idle' | 'wipe-in' | 'loading' | 'wipe-out'
 
 export default function GlobeWipeOverlay() {
   const [phase, setPhase] = useState<Phase>('idle')
@@ -28,6 +28,7 @@ export default function GlobeWipeOverlay() {
 
     const onEnd = () => {
       if (phase === 'wipe-in') {
+        setPhase('loading')
         router.push('/globe')
       } else if (phase === 'wipe-out') {
         setPhase('idle')
@@ -40,16 +41,24 @@ export default function GlobeWipeOverlay() {
 
   if (phase === 'idle') return null
 
+  const isAnimating = phase === 'wipe-in' || phase === 'wipe-out'
+
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[9999] bg-brand-yellow"
+      className="fixed inset-0 z-[9999] bg-brand-yellow flex items-center justify-center"
       style={{
-        animation:
-          phase === 'wipe-in'
+        animation: isAnimating
+          ? phase === 'wipe-in'
             ? 'wipeIn 500ms ease-in-out forwards'
-            : 'wipeOut 500ms ease-in-out forwards',
+            : 'wipeOut 500ms ease-in-out forwards'
+          : undefined,
       }}
-    />
+    >
+      {/* Minimal loading indicator - pulsing dot */}
+      {phase === 'loading' && (
+        <div className="w-3 h-3 bg-black/20 rounded-full animate-pulse" />
+      )}
+    </div>
   )
 }

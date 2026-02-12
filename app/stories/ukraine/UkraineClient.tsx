@@ -25,13 +25,6 @@ interface WeaponData {
 // ISO 3166-1 alpha-3 code for Ukraine
 const UKRAINE_ISO = 'UKR'
 
-// Bounding box for Ukraine with padding
-const UKRAINE_BOUNDS: [[number, number], [number, number]] = [
-  [22.0, 44.0],
-  [40.5, 52.5]
-]
-
-const ELASTIC_PADDING = 1.0
 const POLL_INTERVAL = 15000
 
 const ALERTS_SOURCE = 'alerts-source'
@@ -144,44 +137,41 @@ function WeaponLineChart({
   const containerRef = useRef<HTMLDivElement>(null)
   const [hoveredWeek, setHoveredWeek] = useState<{ week: string; x: number; counts: Record<string, number> } | null>(null)
   const [hoveredLegend, setHoveredLegend] = useState<string | null>(null)
-  const [dimensions, setDimensions] = useState({ width: 800, height: 280 })
+  const [dimensions, setDimensions] = useState({ width: 0, height: 280 })
 
   useEffect(() => {
-    const updateDimensions = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect()
-        setDimensions({ width: rect.width, height: 280 })
+    if (!containerRef.current) return
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const w = entry.contentRect.width
+        if (w > 0) setDimensions({ width: w, height: 280 })
       }
-    }
-    updateDimensions()
-    window.addEventListener('resize', updateDimensions)
-    return () => window.removeEventListener('resize', updateDimensions)
+    })
+    observer.observe(containerRef.current)
+    return () => observer.disconnect()
   }, [])
 
-  if (!data || data.length === 0 || !weapons || weapons.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-48 text-sm" style={{ color: '#9ca3af' }}>
-        Loading frequency data...
-      </div>
-    )
-  }
-
+  const hasData = data && data.length > 0 && weapons && weapons.length > 0
   const { width, height } = dimensions
-  const padding = { top: 20, right: 10, bottom: 60, left: 50 }
-  const chartWidth = width - padding.left - padding.right
+  const canRender = hasData && width > 0
+
+  const padding = { top: 20, right: 20, bottom: 60, left: 50 }
+  const chartWidth = Math.max(0, width - padding.left - padding.right)
   const chartHeight = height - padding.top - padding.bottom
 
   // Find max value across all weapons for Y scale
   let maxValue = 0
-  data.forEach(week => {
-    weapons.forEach(w => {
-      const count = Number(week[w.key] || 0)
-      if (count > maxValue) maxValue = count
+  if (canRender) {
+    data.forEach(week => {
+      weapons.forEach(w => {
+        const count = Number(week[w.key] || 0)
+        if (count > maxValue) maxValue = count
+      })
     })
-  })
+  }
 
   // Calculate x positions for each data point
-  const chartData = data.map((week, i) => {
+  const chartData = canRender ? data.map((week, i) => {
     const counts: Record<string, number> = {}
     weapons.forEach(w => {
       counts[w.key] = Number(week[w.key] || 0)
@@ -189,15 +179,15 @@ function WeaponLineChart({
     return {
       week: week.week,
       counts,
-      x: padding.left + (i / (data.length - 1)) * chartWidth
+      x: padding.left + (i / Math.max(1, data.length - 1)) * chartWidth
     }
-  })
+  }) : []
 
   // Y scale
-  const yScale = (value: number) => padding.top + chartHeight - (value / maxValue) * chartHeight
+  const yScale = (value: number) => padding.top + chartHeight - (maxValue > 0 ? (value / maxValue) * chartHeight : 0)
 
   // Create line paths for each weapon type
-  const linePaths = weapons.map((weapon, weaponIndex) => {
+  const linePaths = canRender ? weapons.map((weapon, weaponIndex) => {
     const points = chartData.map(d => {
       const count = d.counts[weapon.key] || 0
       return `${d.x},${yScale(count)}`
@@ -209,22 +199,27 @@ function WeaponLineChart({
       color: YELLOW_SHADES[weaponIndex % YELLOW_SHADES.length],
       path: `M ${points}`
     }
-  })
+  }) : []
 
   // Y-axis ticks
   const yTicks = [0, Math.round(maxValue / 2), maxValue]
 
-  // X-axis labels
+  // X-axis labels — skip last forced label if too close to previous
   const xLabelIndices: number[] = []
-  const step = Math.floor(data.length / 5)
-  for (let i = 0; i < data.length; i += step) {
-    xLabelIndices.push(i)
-  }
-  if (xLabelIndices[xLabelIndices.length - 1] !== data.length - 1) {
-    xLabelIndices.push(data.length - 1)
+  if (canRender) {
+    const step = Math.max(1, Math.floor(data.length / 5))
+    for (let i = 0; i < data.length; i += step) {
+      xLabelIndices.push(i)
+    }
+    const last = data.length - 1
+    const prev = xLabelIndices[xLabelIndices.length - 1]
+    if (prev !== last && (last - prev) > step / 2) {
+      xLabelIndices.push(last)
+    }
   }
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!canRender) return
     const rect = e.currentTarget.getBoundingClientRect()
     const mouseX = e.clientX - rect.left
 
@@ -250,6 +245,11 @@ function WeaponLineChart({
 
   return (
     <div ref={containerRef} className="w-full">
+      {!canRender ? (
+        <div className="flex items-center justify-center h-48 text-sm" style={{ color: '#9ca3af' }}>
+          Loading frequency data...
+        </div>
+      ) : (<>
       <svg
         width={width}
         height={height}
@@ -401,9 +401,10 @@ function WeaponLineChart({
           </span> total signals
         </div>
         <div>
-          {data.length > 0 && <>Since {formatDate(data[0].week)}</>}
+          {data && data.length > 0 && <>Since {formatDate(data[0].week)}</>}
         </div>
       </div>
+      </>)}
     </div>
   )
 }
@@ -475,8 +476,6 @@ function UkraineContent() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
   const popupRef = useRef<mapboxgl.Popup | null>(null)
-  const isDragging = useRef(false)
-  const isAnimating = useRef(false)
   const mapLoaded = useRef(false)
   const hoveredRegionId = useRef<string | number | null>(null)
 
@@ -580,49 +579,6 @@ function UkraineContent() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [fetchDashboard, fetchAlerts])
 
-  // Helper functions for rubber-band effect
-  const getBoundsObject = () => new mapboxgl.LngLatBounds(UKRAINE_BOUNDS[0], UKRAINE_BOUNDS[1])
-
-  const isWithinElasticBounds = (lng: number, lat: number): boolean => {
-    const bounds = getBoundsObject()
-    const sw = bounds.getSouthWest()
-    const ne = bounds.getNorthEast()
-    return (
-      lng >= sw.lng - ELASTIC_PADDING &&
-      lng <= ne.lng + ELASTIC_PADDING &&
-      lat >= sw.lat - ELASTIC_PADDING &&
-      lat <= ne.lat + ELASTIC_PADDING
-    )
-  }
-
-  const constrainToBounds = (lng: number, lat: number): [number, number] => {
-    const bounds = getBoundsObject()
-    const sw = bounds.getSouthWest()
-    const ne = bounds.getNorthEast()
-    return [
-      Math.max(sw.lng, Math.min(ne.lng, lng)),
-      Math.max(sw.lat, Math.min(ne.lat, lat))
-    ]
-  }
-
-  const handleDragEnd = () => {
-    if (!map.current || isAnimating.current) return
-    const center = map.current.getCenter()
-    const bounds = getBoundsObject()
-
-    if (!bounds.contains(center)) {
-      const [constrainedLng, constrainedLat] = constrainToBounds(center.lng, center.lat)
-      isAnimating.current = true
-      map.current.easeTo({
-        center: [constrainedLng, constrainedLat],
-        duration: 500,
-        easing: (t) => 1 - Math.pow(1 - t, 3)
-      })
-      setTimeout(() => { isAnimating.current = false }, 500)
-    }
-    isDragging.current = false
-  }
-
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current) return
@@ -643,10 +599,15 @@ function UkraineContent() {
           style: 'mapbox://styles/mapbox/light-v11',
           center: [31.5, 48.5],
           zoom: 5,
-          minZoom: 4,
-          maxZoom: 12,
           attributionControl: false,
+          dragPan: false,
+          dragRotate: false,
           scrollZoom: false,
+          boxZoom: false,
+          doubleClickZoom: false,
+          touchZoomRotate: false,
+          touchPitch: false,
+          keyboard: false,
         })
 
         map.current.on('load', () => {
@@ -776,32 +737,6 @@ function UkraineContent() {
           setIsLoading(false)
         })
 
-        if (mapContainer.current) {
-          const enableScrollZoom = () => map.current?.scrollZoom.enable()
-          const disableScrollZoom = () => map.current?.scrollZoom.disable()
-          mapContainer.current.addEventListener('mouseenter', enableScrollZoom)
-          mapContainer.current.addEventListener('mouseleave', disableScrollZoom)
-        }
-
-        map.current.on('dragstart', () => { isDragging.current = true })
-        map.current.on('drag', () => {
-          if (!map.current) return
-          const center = map.current.getCenter()
-          if (!isWithinElasticBounds(center.lng, center.lat)) {
-            const [constrainedLng, constrainedLat] = constrainToBounds(center.lng, center.lat)
-            const overpanLng = center.lng - constrainedLng
-            const overpanLat = center.lat - constrainedLat
-            const dampingFactor = 0.3
-            map.current.setCenter([
-              constrainedLng + overpanLng * dampingFactor,
-              constrainedLat + overpanLat * dampingFactor
-            ])
-          }
-        })
-        map.current.on('dragend', handleDragEnd)
-        map.current.on('moveend', (e: mapboxgl.MapboxEvent) => {
-          if (!isDragging.current && (e as any).originalEvent) handleDragEnd()
-        })
         map.current.on('error', (e) => {
           console.error('Map error:', e)
           setMapError('Failed to load map')

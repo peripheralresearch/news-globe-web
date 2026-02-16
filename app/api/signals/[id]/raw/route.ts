@@ -3,6 +3,23 @@ import { createServiceClient } from '@/lib/supabase/service'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * ADMIN-ONLY OPS BACKDOOR — NOT a product endpoint.
+ *
+ * Uses service_role key + SIGNALS_RAW_ACCESS_KEY env var to bypass all DB gating.
+ * Intended for: debugging signal parser output, spot-checking raw Telegram text,
+ * verifying signal collector writes.
+ *
+ * Product path for raw text access:
+ *   1. Add Supabase Auth to the web app
+ *   2. Insert user into public.user_tier with tier='pro' or 'admin'
+ *   3. Call get_signal_raw(uuid) RPC with authenticated JWT
+ *
+ * Rate limiting plan:
+ *   - When this endpoint is exposed beyond localhost, add Vercel rate limiting
+ *     (vercel.json rewrites + edge middleware) or per-IP token bucket in middleware.ts
+ *   - Target: 10 req/min per IP for authenticated ops users
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }

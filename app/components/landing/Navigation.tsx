@@ -17,6 +17,7 @@ export default function Navigation() {
 
   const navLinks = [
     { label: 'Intelligence', href: '/stories' },
+    { label: 'Signals', href: '/signals' },
     { label: 'Globe', href: '/globe' },
     { label: 'About', href: '/about' },
     { label: 'Contact', href: '/contact' },

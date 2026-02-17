@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const weaponType = searchParams.get('weapon_type') || undefined
     const signalType = searchParams.get('signal_type') || undefined
     const since = searchParams.get('since') || undefined
+    const category = searchParams.get('category') || undefined
 
     const { data, error } = await supabase.rpc('get_signals_latest', {
       p_limit: limit,
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
       p_weapon_type: weaponType ?? null,
       p_signal_type: signalType ?? null,
       p_since: since ?? null,
+      p_category: category ?? null,
     })
 
     if (error) {

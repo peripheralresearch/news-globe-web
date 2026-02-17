@@ -57,6 +57,7 @@ describe('GET /api/signals/latest', () => {
       p_weapon_type: null,
       p_signal_type: null,
       p_since: null,
+      p_category: null,
     })
   })
 
@@ -77,6 +78,7 @@ describe('GET /api/signals/latest', () => {
       p_weapon_type: 'Shahed-136',
       p_signal_type: 'air_threat_track',
       p_since: '2026-02-17T00:00:00Z',
+      p_category: null,
     })
   })
 

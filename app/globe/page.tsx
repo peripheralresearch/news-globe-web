@@ -821,7 +821,7 @@ export default function Home() {
   // Load globe data
   const fetchGlobePage = useCallback(async (limit: number) => {
     try {
-      const response = await fetch(`/api/sentinel/globe?limit=${limit}&hours=0`)
+      const response = await fetch(`/api/sentinel/globe?limit=${limit}&hours=168`)
       if (!response.ok) {
         console.error(`Globe API (limit=${limit}) responded with ${response.status}`)
         return null
@@ -1954,14 +1954,56 @@ function MapMarker({
         ))}
       </div>
 
+      {/* Connector arm from dot to panel (diagonal up then horizontal elbow) */}
+      {showPanel && (() => {
+        const diagDx = 40   // diagonal horizontal distance
+        const diagDy = 55   // diagonal vertical distance
+        const horizLen = 30 // horizontal segment length
+        const strokeColor = theme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(26,26,46,0.35)'
+        const dotFill = theme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(26,26,46,0.45)'
+        return (
+          <svg
+            className="absolute pointer-events-none hover-card-enter"
+            style={{
+              left: `${baseSize / 2}px`,
+              top: `${-diagDy}px`,
+              width: `${diagDx + horizLen}px`,
+              height: `${diagDy}px`,
+              zIndex: 49,
+              overflow: 'visible',
+            }}
+          >
+            {/* Diagonal segment */}
+            <line
+              x1="0"
+              y1={diagDy}
+              x2={diagDx}
+              y2="0"
+              stroke={strokeColor}
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            />
+            {/* Horizontal segment */}
+            <line
+              x1={diagDx}
+              y1="0"
+              x2={diagDx + horizLen}
+              y2="0"
+              stroke={strokeColor}
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            />
+          </svg>
+        )
+      })()}
+
       {/* Hover/Click Panel with slide-in fade animation */}
       {showPanel && (
         <div
           className="absolute hover-card-enter"
           style={{
-            left: `${baseSize + 20}px`,
-            top: '50%',
-            transform: 'translateY(-50%)',
+            left: `${baseSize / 2 + 40 + 30}px`,
+            top: '-55px',
             width: isExpanded ? '400px' : '320px',
             zIndex: 50,
             transition: 'width 0.2s ease-out',

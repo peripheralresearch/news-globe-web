@@ -129,7 +129,7 @@ export default function ArticleClient({ article }: ArticleClientProps) {
       {/* Article Container */}
       <article
         className="max-w-4xl mx-auto px-6 py-12"
-        style={{ fontFamily: 'var(--font-source-serif-4), Georgia, serif' }}
+        style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
       >
         {/* Article Header */}
         <header className="mb-12">

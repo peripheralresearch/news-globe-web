@@ -1,15 +1,6 @@
 import type { Metadata } from 'next'
-import { Inter, Source_Serif_4 } from 'next/font/google'
 import './globals.css'
 import GlobeWipeOverlay from './components/GlobeWipeOverlay'
-
-const inter = Inter({ subsets: ['latin'] })
-const sourceSerif = Source_Serif_4({
-  subsets: ['latin'],
-  weight: ['400', '600'],
-  display: 'swap',
-  variable: '--font-source-serif-4',
-})
 
 export const metadata: Metadata = {
   title: 'The Peripheral',
@@ -26,7 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} ${sourceSerif.variable}`}>
+      <body style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif' }}>
         <GlobeWipeOverlay />
         {children}
       </body>

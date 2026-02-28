@@ -607,7 +607,7 @@ function VenezuelaArticleContent() {
       {/* Article Container */}
       <div
         className="max-w-6xl mx-auto px-6 py-12"
-        style={{ fontFamily: 'var(--font-source-serif-4), "Times New Roman", serif' }}
+        style={{ fontFamily: '"Times New Roman", Georgia, serif' }}
       >
 
         {/* Article Header */}

@@ -80,7 +80,7 @@ const jsonLdSchemas = [
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-white dark:bg-black">
+    <main className="min-h-screen bg-white dark:bg-brand-abyss">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -97,42 +97,42 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Main Feature Article */}
             <div className="md:row-span-2 group">
-              <div className="bg-slate-100 aspect-[4/3] rounded-lg mb-4" />
-              <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Featured</span>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1 mb-2 group-hover:underline">
+              <div className="bg-brand-neutral-100 aspect-[4/3] rounded-lg mb-4" />
+              <span className="text-xs font-medium uppercase tracking-wider text-brand-warm-400">Featured</span>
+              <h3 className="text-2xl font-bold text-brand-navy mt-1 mb-2 group-hover:underline">
                 Headline for the main feature article goes here
               </h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
+              <p className="text-brand-warm-600 text-sm leading-relaxed">
                 A brief summary of the lead story. This placeholder represents the primary editorial
                 piece that anchors the front page layout.
               </p>
-              <span className="text-xs text-slate-400 mt-3 block">12 sources &bull; 2h ago</span>
+              <span className="text-xs text-brand-warm-400 mt-3 block">12 sources &bull; 2h ago</span>
             </div>
 
             {/* Secondary Article */}
             <div className="group">
-              <div className="bg-slate-100 aspect-[16/9] rounded-lg mb-4" />
-              <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Analysis</span>
-              <h3 className="text-lg font-bold text-slate-900 mt-1 mb-2 group-hover:underline">
+              <div className="bg-brand-neutral-100 aspect-[16/9] rounded-lg mb-4" />
+              <span className="text-xs font-medium uppercase tracking-wider text-brand-warm-400">Analysis</span>
+              <h3 className="text-lg font-bold text-brand-navy mt-1 mb-2 group-hover:underline">
                 Secondary story headline sits here
               </h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
+              <p className="text-brand-warm-600 text-sm leading-relaxed">
                 Supporting context for the second story with a concise summary of verified developments.
               </p>
-              <span className="text-xs text-slate-400 mt-3 block">8 sources &bull; 4h ago</span>
+              <span className="text-xs text-brand-warm-400 mt-3 block">8 sources &bull; 4h ago</span>
             </div>
 
             {/* Tertiary Article */}
             <div className="group">
-              <div className="bg-slate-100 aspect-[16/9] rounded-lg mb-4" />
-              <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Briefing</span>
-              <h3 className="text-lg font-bold text-slate-900 mt-1 mb-2 group-hover:underline">
+              <div className="bg-brand-neutral-100 aspect-[16/9] rounded-lg mb-4" />
+              <span className="text-xs font-medium uppercase tracking-wider text-brand-warm-400">Briefing</span>
+              <h3 className="text-lg font-bold text-brand-navy mt-1 mb-2 group-hover:underline">
                 Third story headline placed here
               </h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
+              <p className="text-brand-warm-600 text-sm leading-relaxed">
                 A short intelligence briefing summarising key signals from multiple open sources.
               </p>
-              <span className="text-xs text-slate-400 mt-3 block">5 sources &bull; 6h ago</span>
+              <span className="text-xs text-brand-warm-400 mt-3 block">5 sources &bull; 6h ago</span>
             </div>
           </div>
         </div>
@@ -141,13 +141,13 @@ export default function LandingPage() {
       <StatsBanner />
 
       {/* How Sentinel Works Section */}
-      <section className="py-24 bg-slate-50">
+      <section className="py-24 bg-brand-neutral-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">
+            <h2 className="text-4xl font-bold text-brand-navy mb-4">
               How Sentinel Works
             </h2>
-            <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+            <p className="text-xl text-brand-warm-600 max-w-3xl mx-auto">
               Our intelligence pipeline transforms raw OSINT data into structured, verified intelligence
             </p>
           </div>
@@ -165,40 +165,40 @@ export default function LandingPage() {
 
           <div className="grid md:grid-cols-3 gap-8 mb-12">
             <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900 mb-3">📡 Data Collection</h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
-                Sentinel monitors 100+ OSINT sources including Telegram channels, RSS feeds, and social media. 
+              <h3 className="text-lg font-bold text-brand-navy mb-3">Data Collection</h3>
+              <p className="text-brand-warm-600 text-sm leading-relaxed">
+                Sentinel monitors 100+ OSINT sources including Telegram channels, RSS feeds, and social media.
                 Every post is captured, timestamped, and stored with full source attribution.
               </p>
             </div>
 
             <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900 mb-3">🧠 NLP Enrichment</h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
-                Our pipeline extracts entities, analyzes sentiment, generates summaries, and identifies military signals 
+              <h3 className="text-lg font-bold text-brand-navy mb-3">NLP Enrichment</h3>
+              <p className="text-brand-warm-600 text-sm leading-relaxed">
+                Our pipeline extracts entities, analyzes sentiment, generates summaries, and identifies military signals
                 using state-of-the-art NLP models. Each article is enriched with structured metadata.
               </p>
             </div>
 
             <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900 mb-3">📰 Story Generation</h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
-                Related articles are automatically clustered into stories with geolocation, entity tags, and confidence scores. 
+              <h3 className="text-lg font-bold text-brand-navy mb-3">Story Generation</h3>
+              <p className="text-brand-warm-600 text-sm leading-relaxed">
+                Related articles are automatically clustered into stories with geolocation, entity tags, and confidence scores.
                 Everything is source-linked and verifiable.
               </p>
             </div>
           </div>
 
           <div className="text-center space-x-4">
-            <Link 
+            <Link
               href="/about"
-              className="inline-block px-6 py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
+              className="inline-block px-6 py-3 bg-brand-navy text-white rounded-lg hover:bg-brand-abyss transition-colors"
             >
               Learn More About Us
             </Link>
             <Link
               href="/sentinel-system"
-              className="inline-block px-6 py-3 bg-white text-slate-900 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+              className="inline-block px-6 py-3 bg-white text-brand-navy border border-brand-neutral-300 rounded-lg hover:bg-brand-neutral-50 transition-colors"
             >
               Deep Dive: Inside Sentinel
             </Link>

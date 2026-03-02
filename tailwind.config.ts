@@ -11,7 +11,24 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          yellow: '#F2C94C',
+          yellow: '#FAD44D',
+          navy: '#13235C',
+          abyss: '#091642',
+          ink: '#0D0D0D',
+          warm: {
+            100: '#ECEBE8',
+            200: '#D0CEC7',
+            400: '#A19D90',
+            600: '#6E6A5D',
+            800: '#3C3A33',
+          },
+          neutral: {
+            50: '#F5F5F5',
+            100: '#E8E8E8',
+            300: '#CCCCCC',
+            600: '#6B6B6B',
+            900: '#1A1A1A',
+          },
         },
       },
       backgroundImage: {

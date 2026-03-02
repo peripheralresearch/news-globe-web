@@ -68,10 +68,10 @@ export default function StatsBanner() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {statItems.map((item, index) => (
               <div key={index} className="text-center">
-                <div className="text-3xl font-bold text-black mb-1">
+                <div className="text-3xl font-bold text-brand-navy mb-1">
                   {item.value}
                 </div>
-                <div className="text-sm text-black/70">
+                <div className="text-sm text-brand-navy/70">
                   {item.label}
                 </div>
               </div>

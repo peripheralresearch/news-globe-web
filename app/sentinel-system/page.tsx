@@ -5,7 +5,8 @@ import { Navigation, Footer } from '@/app/components/landing'
 
 export const metadata: Metadata = {
   title: 'Inside Sentinel — The Peripheral',
-  description: 'A deep dive into Sentinel, our OSINT intelligence pipeline that powers The Peripheral. Learn how we collect, enrich, and deliver structured intelligence from global conflicts.',
+  description:
+    "Inside Sentinel: The Peripheral's evidence-first OSINT pipeline for NGOs and researchers. Trace every claim to primary sources, quantify uncertainty, and explore structured intelligence without black-box assertions.",
 }
 
 export default function SentinelSystemPage() {
@@ -14,55 +15,60 @@ export default function SentinelSystemPage() {
       <Navigation />
 
       {/* Hero Section */}
-      <section className="pt-32 pb-16 bg-gradient-to-b from-slate-900 to-slate-800 text-white">
+      <section className="pt-32 pb-16 bg-gradient-to-b from-brand-abyss to-brand-navy text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <h1 className="text-5xl font-bold mb-6">Inside Sentinel</h1>
-          <p className="text-xl text-slate-300 leading-relaxed">
-            A deep dive into our OSINT intelligence pipeline — how we transform raw data from 100+ sources 
-            into structured, verified intelligence for journalists and researchers worldwide.
+          <p className="text-xl text-brand-warm-200 leading-relaxed">
+            Sentinel is The Peripheral&apos;s evidence-first OSINT pipeline: it captures information,
+            structures it for reasoning, and preserves provenance so every claim remains auditable.
+          </p>
+          <p className="mt-6 text-base text-brand-warm-200 leading-relaxed max-w-3xl">
+            We build for NGOs and researchers operating in adversarial information environments.
+            Our goal is not to become an oracle, but to help humans see the signal, the uncertainty,
+            and the evidence underneath.
           </p>
         </div>
       </section>
 
       {/* Table of Contents */}
-      <section className="py-8 bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+      <section className="py-6 bg-brand-neutral-50 border-b border-brand-neutral-100 sticky top-20 z-10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <nav className="flex flex-wrap gap-6 text-sm">
-            <a href="#overview" className="text-slate-600 hover:text-slate-900 transition-colors">Overview</a>
-            <a href="#collection" className="text-slate-600 hover:text-slate-900 transition-colors">Data Collection</a>
-            <a href="#enrichment" className="text-slate-600 hover:text-slate-900 transition-colors">Enrichment Pipeline</a>
-            <a href="#stories" className="text-slate-600 hover:text-slate-900 transition-colors">Story Generation</a>
-            <a href="#delivery" className="text-slate-600 hover:text-slate-900 transition-colors">API & Delivery</a>
-            <a href="#stack" className="text-slate-600 hover:text-slate-900 transition-colors">Technical Stack</a>
+            <a href="#overview" className="text-brand-warm-600 hover:text-brand-ink transition-colors">Overview</a>
+            <a href="#principles" className="text-brand-warm-600 hover:text-brand-ink transition-colors">Principles</a>
+            <a href="#workflow" className="text-brand-warm-600 hover:text-brand-ink transition-colors">Workflow</a>
+            <a href="#evidence" className="text-brand-warm-600 hover:text-brand-ink transition-colors">Evidence</a>
+            <a href="#uncertainty" className="text-brand-warm-600 hover:text-brand-ink transition-colors">Uncertainty</a>
+            <a href="#access" className="text-brand-warm-600 hover:text-brand-ink transition-colors">Access</a>
+            <a href="#stack" className="text-brand-warm-600 hover:text-brand-ink transition-colors">Implementation Notes</a>
           </nav>
         </div>
       </section>
 
       <article className="max-w-4xl mx-auto px-4 sm:px-6 py-16">
         {/* Overview */}
-        <section id="overview" className="mb-16 scroll-mt-24">
-          <h2 className="text-3xl font-bold text-slate-900 mb-6">What is Sentinel?</h2>
+        <section id="overview" className="mb-16 scroll-mt-32">
+          <h2 className="text-3xl font-bold text-brand-navy mb-6">What is Sentinel?</h2>
           <div className="prose prose-slate max-w-none">
-            <p className="text-lg text-slate-700 leading-relaxed mb-4">
-              Sentinel is The Peripheral's OSINT intelligence pipeline — a fully automated system that monitors, 
-              enriches, and structures data from global conflict zones. Unlike traditional news aggregators, 
-              Sentinel doesn't just collect articles; it understands them.
+            <p className="text-lg text-brand-warm-600 leading-relaxed mb-4">
+              Sentinel sits between raw information and human understanding. It collects open-source material,
+              extracts structure (entities, locations, relationships, timelines), and retains provenance so
+              analysts can verify claims instead of inheriting them.
             </p>
-            <p className="text-lg text-slate-700 leading-relaxed mb-4">
-              Every 15 minutes, Sentinel processes thousands of posts from Telegram channels, RSS feeds, and 
-              social media. Each article is enriched with entity extraction, sentiment analysis, geolocation, 
-              and military signal detection. Related articles are automatically clustered into stories with 
-              full source attribution and confidence scores.
+            <p className="text-lg text-brand-warm-600 leading-relaxed mb-4">
+              Our default mode is evidence-first: every output links back to primary sources and makes
+              uncertainty explicit. Sentinel is designed to augment human judgment, not replace it.
             </p>
-            <p className="text-lg text-slate-700 leading-relaxed">
-              The result: structured, verifiable intelligence that journalists can trust and researchers can query programmatically.
+            <p className="text-lg text-brand-warm-600 leading-relaxed">
+              For NGOs and researchers, this means faster triage, clearer context, and a reproducible audit
+              trail across fragmented coverage.
             </p>
           </div>
         </section>
 
         {/* Pipeline Diagram */}
         <section className="mb-16">
-          <div className="bg-slate-100 p-8 rounded-lg">
+          <div className="bg-brand-neutral-100 p-8 rounded-lg">
             <Image
               src="/images/sentinel-pipeline.png"
               alt="Sentinel Pipeline Architecture"
@@ -70,217 +76,235 @@ export default function SentinelSystemPage() {
               height={1154}
               className="w-full h-auto rounded-lg shadow-lg"
             />
-            <p className="text-sm text-slate-600 mt-4 text-center">
-              The Sentinel intelligence pipeline: from raw OSINT to structured stories
+            <p className="text-sm text-brand-warm-600 mt-4 text-center">
+              Sentinel, end to end: from raw OSINT to structured, auditable intelligence
             </p>
           </div>
         </section>
 
-        {/* Data Collection Layer */}
-        <section id="collection" className="mb-16 scroll-mt-24">
-          <h2 className="text-3xl font-bold text-slate-900 mb-6">1. Data Collection Layer</h2>
-          <div className="prose prose-slate max-w-none">
-            <p className="text-lg text-slate-700 leading-relaxed mb-6">
-              Sentinel monitors 100+ OSINT sources around the clock. Every Telegram message, RSS article, 
-              and social media post is captured with full metadata: timestamp, author, channel, and media attachments.
-            </p>
+        {/* Principles */}
+        <section id="principles" className="mb-16 scroll-mt-32">
+          <h2 className="text-3xl font-bold text-brand-navy mb-6">The Principles Behind Sentinel</h2>
+          <p className="text-lg text-brand-warm-600 leading-relaxed mb-6">
+            The Peripheral exists to keep truthful, verifiable information accessible. Sentinel is how we
+            operationalize that mission.
+          </p>
 
-            <h3 className="text-xl font-bold text-slate-900 mb-4">Source Types</h3>
-            <div className="grid md:grid-cols-2 gap-4 mb-6">
-              <div className="bg-white p-4 rounded-lg border border-slate-200">
-                <h4 className="font-bold text-slate-900 mb-2">📱 Telegram Channels</h4>
-                <p className="text-sm text-slate-600">
-                  Real-time monitoring of conflict reporting channels. Downloads media files (photos, videos) 
-                  and stores them in Oracle Cloud Storage for archival and analysis.
-                </p>
-              </div>
-              <div className="bg-white p-4 rounded-lg border border-slate-200">
-                <h4 className="font-bold text-slate-900 mb-2">📰 RSS Feeds</h4>
-                <p className="text-sm text-slate-600">
-                  Traditional news sources, think tanks, and government briefings. Polled every 15 minutes 
-                  for new articles with full-text extraction.
-                </p>
-              </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="bg-white p-6 rounded-lg border border-brand-neutral-100">
+              <h3 className="text-lg font-bold text-brand-navy mb-2">Truth Above All Else</h3>
+              <p className="text-sm text-brand-warm-600 leading-relaxed">
+                We prefer traceable evidence over persuasive narrative. The job is clarity, and the ability
+                to hold actors accountable with verifiable records.
+              </p>
             </div>
-
-            <h3 className="text-xl font-bold text-slate-900 mb-4">How It Works</h3>
-            <div className="bg-slate-50 p-6 rounded-lg mb-6">
-              <ol className="space-y-3 text-slate-700">
-                <li><strong>1. Collection Workers</strong> — Celery tasks poll sources every 15 minutes</li>
-                <li><strong>2. Deduplication</strong> — Check if article already exists (by link/hash)</li>
-                <li><strong>3. Media Download</strong> — Videos/images saved to Oracle Cloud Storage</li>
-                <li><strong>4. Database Insert</strong> — Article + metadata stored in Supabase PostgreSQL</li>
-                <li><strong>5. Queue for Enrichment</strong> — Triggers NLP pipeline via RabbitMQ</li>
-              </ol>
+            <div className="bg-white p-6 rounded-lg border border-brand-neutral-100">
+              <h3 className="text-lg font-bold text-brand-navy mb-2">Open-Minded, Not Gullible</h3>
+              <p className="text-sm text-brand-warm-600 leading-relaxed">
+                We respect the full range of human testimony, and we avoid total dependence on any single
+                person, channel, or institution. The whole is who we serve.
+              </p>
             </div>
-          </div>
-        </section>
-
-        {/* Enrichment Pipeline */}
-        <section id="enrichment" className="mb-16 scroll-mt-24">
-          <h2 className="text-3xl font-bold text-slate-900 mb-6">2. NLP Enrichment Pipeline</h2>
-          <div className="prose prose-slate max-w-none">
-            <p className="text-lg text-slate-700 leading-relaxed mb-6">
-              Raw articles are processed through a series of NLP bots that extract structured intelligence. 
-              Each bot runs independently, adding layers of metadata to the original post.
-            </p>
-
-            <div className="space-y-6">
-              {/* Sentiment Bot */}
-              <div className="bg-white p-6 rounded-lg border border-slate-200">
-                <h3 className="text-xl font-bold text-slate-900 mb-3">😊 Sentiment Analysis Bot</h3>
-                <p className="text-slate-700 mb-3">
-                  Analyzes tone and emotional valence. Classifies articles as positive, negative, or neutral 
-                  with confidence scores. Useful for detecting propaganda, morale indicators, and bias.
-                </p>
-                <div className="bg-slate-50 p-3 rounded text-sm font-mono text-slate-600">
-                  sentiment_score: -0.65, sentiment_category: "negative"
-                </div>
-              </div>
-
-              {/* Entity Extraction Bot */}
-              <div className="bg-white p-6 rounded-lg border border-slate-200">
-                <h3 className="text-xl font-bold text-slate-900 mb-3">🏷️ Entity Extraction Bot</h3>
-                <p className="text-slate-700 mb-3">
-                  Identifies people, organizations, locations, countries, and weapons mentioned in the text. 
-                  Each entity is linked to a global entity database for cross-referencing.
-                </p>
-                <div className="bg-slate-50 p-3 rounded text-sm font-mono text-slate-600">
-                  entities: &#123;"people": ["Ali Khamenei"], "locations": ["Tehran"], "weapons": ["Shahed-136"]&#125;
-                </div>
-              </div>
-
-              {/* Summary Bot */}
-              <div className="bg-white p-6 rounded-lg border border-slate-200">
-                <h3 className="text-xl font-bold text-slate-900 mb-3">📝 Summary Bot</h3>
-                <p className="text-slate-700 mb-3">
-                  Generates concise 2-3 sentence summaries for quick scanning. Preserves key facts while 
-                  removing editorial noise.
-                </p>
-              </div>
-
-              {/* Signal Extraction Bot */}
-              <div className="bg-white p-6 rounded-lg border border-slate-200">
-                <h3 className="text-xl font-bold text-slate-900 mb-3">🎯 Military Signal Extraction</h3>
-                <p className="text-slate-700 mb-3">
-                  Detects military activity: strikes, drone sightings, troop movements, weapon deployments. 
-                  Extracts geolocation (lat/lon) when possible and links to GeoConfirmed KML data.
-                </p>
-                <div className="bg-slate-50 p-3 rounded text-sm font-mono text-slate-600">
-                  signal_type: "air_strike", target_location: "Tehran", weapon_type: "cruise_missile"
-                </div>
-              </div>
+            <div className="bg-white p-6 rounded-lg border border-brand-neutral-100">
+              <h3 className="text-lg font-bold text-brand-navy mb-2">Probability, Not Absolutes</h3>
+              <p className="text-sm text-brand-warm-600 leading-relaxed">
+                True and false are rarely binary. Sentinel is built to make uncertainty explicit: confidence,
+                corroboration, contradictions, and the remaining chance we are wrong.
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-lg border border-brand-neutral-100">
+              <h3 className="text-lg font-bold text-brand-navy mb-2">Humans Remain in the Loop</h3>
+              <p className="text-sm text-brand-warm-600 leading-relaxed">
+                Automation scales triage and pattern-finding. Humans make the final calls. Every automated
+                output is designed to be auditable, correctable, and contestable.
+              </p>
             </div>
           </div>
         </section>
 
-        {/* Story Generation */}
-        <section id="stories" className="mb-16 scroll-mt-24">
-          <h2 className="text-3xl font-bold text-slate-900 mb-6">3. Story Generation & Clustering</h2>
-          <div className="prose prose-slate max-w-none">
-            <p className="text-lg text-slate-700 leading-relaxed mb-6">
-              Individual articles are great, but stories are better. Sentinel automatically clusters related 
-              articles into cohesive narratives using semantic embeddings and entity overlap.
-            </p>
+        {/* Workflow */}
+        <section id="workflow" className="mb-16 scroll-mt-32">
+          <h2 className="text-3xl font-bold text-brand-navy mb-6">Workflow: From Noise to Knowledge</h2>
+          <p className="text-lg text-brand-warm-600 leading-relaxed mb-6">
+            Sentinel is a pipeline of transformations. Each stage produces artifacts you can inspect,
+            reproduce, and challenge.
+          </p>
 
-            <h3 className="text-xl font-bold text-slate-900 mb-4">How Stories Are Built</h3>
-            <div className="bg-slate-50 p-6 rounded-lg mb-6">
-              <ol className="space-y-3 text-slate-700">
-                <li><strong>1. Semantic Embeddings</strong> — Convert article text to 1536-dimensional vectors (OpenAI)</li>
-                <li><strong>2. Similarity Clustering</strong> — Group articles with cosine similarity &gt; 0.80</li>
-                <li><strong>3. Entity Overlap</strong> — Boost clustering confidence if entities match</li>
-                <li><strong>4. Geolocation Merge</strong> — Aggregate lat/lon from signals into story-level map pins</li>
-                <li><strong>5. Generate Story Title</strong> — LLM creates concise headline from cluster</li>
-              </ol>
+          <div className="bg-brand-neutral-50 p-6 rounded-lg">
+            <ol className="space-y-4 text-brand-warm-600">
+              <li>
+                <strong>1. Collect</strong> — ingest open sources (feeds, channels, publications) with capture
+                metadata and media attachments.
+              </li>
+              <li>
+                <strong>2. Normalize</strong> — dedupe, standardize timestamps, resolve source identity, and
+                preserve original text/media for audit.
+              </li>
+              <li>
+                <strong>3. Enrich</strong> — extract entities, locations, and candidate signals; generate summaries as
+                navigation aids (not ground truth).
+              </li>
+              <li>
+                <strong>4. Link</strong> — connect related items into stories and timelines using multiple signals (content similarity,
+                entity overlap, and temporal proximity).
+              </li>
+              <li>
+                <strong>5. Deliver</strong> — expose the structured view via the website and programmatic interfaces with clear provenance.
+              </li>
+            </ol>
+          </div>
+
+          <div className="mt-6 grid md:grid-cols-3 gap-4">
+            <div className="bg-white p-5 rounded-lg border border-brand-neutral-100">
+              <p className="text-xs font-medium text-brand-warm-400 uppercase tracking-wider">Output</p>
+              <p className="mt-1 font-semibold text-brand-navy">Stories</p>
+              <p className="mt-2 text-sm text-brand-warm-600 leading-relaxed">
+                Clustered narratives backed by multiple sources, with timestamps and linked evidence.
+              </p>
             </div>
-
-            <p className="text-slate-700">
-              The result: a story page showing 5-20 source articles, entity timeline, geolocation map, 
-              and confidence metadata. Every claim is traceable to its source.
-            </p>
+            <div className="bg-white p-5 rounded-lg border border-brand-neutral-100">
+              <p className="text-xs font-medium text-brand-warm-400 uppercase tracking-wider">Output</p>
+              <p className="mt-1 font-semibold text-brand-navy">Entities</p>
+              <p className="mt-2 text-sm text-brand-warm-600 leading-relaxed">
+                People, organizations, locations, and objects extracted as structured data for search and analysis.
+              </p>
+            </div>
+            <div className="bg-white p-5 rounded-lg border border-brand-neutral-100">
+              <p className="text-xs font-medium text-brand-warm-400 uppercase tracking-wider">Output</p>
+              <p className="mt-1 font-semibold text-brand-navy">Signals</p>
+              <p className="mt-2 text-sm text-brand-warm-600 leading-relaxed">
+                High-salience events and alerts for monitoring, triage, and investigative workflows.
+              </p>
+            </div>
           </div>
         </section>
 
-        {/* API & Delivery */}
-        <section id="delivery" className="mb-16 scroll-mt-24">
-          <h2 className="text-3xl font-bold text-slate-900 mb-6">4. API & Delivery</h2>
+        {/* Evidence */}
+        <section id="evidence" className="mb-16 scroll-mt-32">
+          <h2 className="text-3xl font-bold text-brand-navy mb-6">Evidence and Auditability</h2>
           <div className="prose prose-slate max-w-none">
-            <p className="text-lg text-slate-700 leading-relaxed mb-6">
-              Sentinel's intelligence is accessible via multiple interfaces:
+            <p className="text-lg text-brand-warm-600 leading-relaxed mb-6">
+              In a post-truth environment, the output matters less than the audit trail. Sentinel is built
+              so you can answer: <em>Where did this come from?</em> <em>What supports it?</em> <em>What contradicts it?</em>
             </p>
 
-            <div className="space-y-4">
-              <div className="bg-white p-6 rounded-lg border border-slate-200">
-                <h3 className="text-xl font-bold text-slate-900 mb-3">🌐 Public Website</h3>
-                <p className="text-slate-700">
-                  Browse stories, search by entity/location, view geolocation maps. Designed for journalists 
-                  and researchers who want a visual interface.
-                </p>
-              </div>
+            <div className="bg-white border border-brand-neutral-100 rounded-lg p-6">
+              <h3 className="text-xl font-bold text-brand-navy mb-3">What We Preserve</h3>
+              <ul className="space-y-2 text-brand-warm-600">
+                <li><strong>Primary sources</strong> — direct links and source identity, not screenshots of screenshots.</li>
+                <li><strong>Capture metadata</strong> — when it was observed and when it was collected.</li>
+                <li><strong>Media context</strong> — attachments and surrounding text where available.</li>
+                <li><strong>Structured extraction</strong> — entities and locations that power analysis and discovery.</li>
+                <li><strong>Change visibility</strong> — corrections and updates are treated as first-class events, not silent edits.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
 
-              <div className="bg-white p-6 rounded-lg border border-slate-200">
-                <h3 className="text-xl font-bold text-slate-900 mb-3">🔌 MCP Server</h3>
-                <p className="text-slate-700 mb-3">
-                  Claude Desktop integration via Model Context Protocol. Query Peripheral data directly 
-                  from your AI assistant: "Show me Iran strike videos from the last 48 hours."
-                </p>
-                <div className="bg-slate-50 p-3 rounded text-sm font-mono text-slate-600">
-                  npm install @peripheral/mcp-server
-                </div>
-              </div>
+        {/* Uncertainty */}
+        <section id="uncertainty" className="mb-16 scroll-mt-32">
+          <h2 className="text-3xl font-bold text-brand-navy mb-6">Uncertainty Is a Feature</h2>
+          <div className="prose prose-slate max-w-none">
+            <p className="text-lg text-brand-warm-600 leading-relaxed mb-6">
+              Sentinel treats truth as a probability, not a proclamation. We show confidence and corroboration so
+              analysts can weigh evidence without being pushed into false certainty.
+            </p>
 
-              <div className="bg-white p-6 rounded-lg border border-slate-200">
-                <h3 className="text-xl font-bold text-slate-900 mb-3">📡 REST API</h3>
-                <p className="text-slate-700">
-                  Programmatic access to stories, signals, entities, and raw articles. Full Supabase REST API 
-                  with filtering, pagination, and authentication.
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="bg-brand-neutral-50 p-6 rounded-lg">
+                <h3 className="text-lg font-bold text-brand-navy mb-2">Confidence Scoring</h3>
+                <p className="text-sm text-brand-warm-600 leading-relaxed">
+                  Confidence reflects how strongly the available evidence supports an extraction or linkage. It is
+                  not a claim of correctness, and it is always revisable.
                 </p>
               </div>
+              <div className="bg-brand-neutral-50 p-6 rounded-lg">
+                <h3 className="text-lg font-bold text-brand-navy mb-2">Contradictions and Gaps</h3>
+                <p className="text-sm text-brand-warm-600 leading-relaxed">
+                  Disagreement between sources, missing context, and low-quality evidence are surfaced as part of the
+                  analysis, not hidden behind a single summary.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Access */}
+        <section id="access" className="mb-16 scroll-mt-32">
+          <h2 className="text-3xl font-bold text-brand-navy mb-6">Access and Integrations</h2>
+          <p className="text-lg text-brand-warm-600 leading-relaxed mb-6">
+            We aim to democratize intelligence without dumbing it down. Access is designed to support real research
+            workflows and preserve an audit trail.
+          </p>
+
+          <div className="space-y-4">
+            <div className="bg-white p-6 rounded-lg border border-brand-neutral-100">
+              <h3 className="text-xl font-bold text-brand-navy mb-2">Website</h3>
+              <p className="text-brand-warm-600">
+                Browse structured stories, sources, and geospatial context with direct links back to primary material.
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-lg border border-brand-neutral-100">
+              <h3 className="text-xl font-bold text-brand-navy mb-2">Programmatic Access</h3>
+              <p className="text-brand-warm-600">
+                For partners, we provide programmatic access for integration into investigative and research tooling.
+                We prioritize transparency, provenance, and rate-limited safety for dual-use concerns.
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-lg border border-brand-neutral-100">
+              <h3 className="text-xl font-bold text-brand-navy mb-2">Exports</h3>
+              <p className="text-brand-warm-600">
+                Structured exports enable reproducible analysis and reporting pipelines.
+              </p>
             </div>
           </div>
         </section>
 
         {/* Technical Stack */}
-        <section id="stack" className="mb-16 scroll-mt-24">
-          <h2 className="text-3xl font-bold text-slate-900 mb-6">Technical Stack</h2>
+        <section id="stack" className="mb-16 scroll-mt-32">
+          <h2 className="text-3xl font-bold text-brand-navy mb-6">Implementation Notes (What We Share Publicly)</h2>
           <div className="prose prose-slate max-w-none">
+            <p className="text-lg text-brand-warm-600 leading-relaxed mb-6">
+              We believe methodology should be transparent and auditable. At the same time, operational specifics can
+              be dual-use. Publicly, we share the shape of the system, not the full blueprint.
+            </p>
+
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 mb-3">Infrastructure</h3>
-                <ul className="space-y-2 text-slate-700">
-                  <li>🐳 <strong>Docker</strong> — Containerized microservices</li>
-                  <li>🗄️ <strong>Supabase PostgreSQL</strong> — 95K+ articles, 336K+ signals</li>
-                  <li>🐰 <strong>RabbitMQ</strong> — Task queue for workers</li>
-                  <li>⚡ <strong>Celery</strong> — Distributed task processing</li>
+                <h3 className="text-lg font-bold text-brand-navy mb-3">Infrastructure</h3>
+                <ul className="space-y-2 text-brand-warm-600">
+                  <li><strong>Incremental ingestion</strong> — continuous collection with dedupe and capture metadata.</li>
+                  <li><strong>Structured datastore</strong> — queryable storage for stories, entities, and provenance.</li>
+                  <li><strong>Media storage</strong> — durable storage for attachments required for verification.</li>
+                  <li><strong>Queue-based processing</strong> — background jobs for enrichment and linking.</li>
                 </ul>
               </div>
 
               <div>
-                <h3 className="text-lg font-bold text-slate-900 mb-3">AI & NLP</h3>
-                <ul className="space-y-2 text-slate-700">
-                  <li>🤖 <strong>OpenAI GPT-4</strong> — Summaries, entity extraction</li>
-                  <li>🧠 <strong>OpenAI Embeddings</strong> — Semantic clustering</li>
-                  <li>📊 <strong>LangChain</strong> — LLM orchestration</li>
-                  <li>🔍 <strong>pgvector</strong> — Vector similarity search</li>
+                <h3 className="text-lg font-bold text-brand-navy mb-3">AI & NLP</h3>
+                <ul className="space-y-2 text-brand-warm-600">
+                  <li><strong>Extraction</strong> — entities, locations, and candidate signals from text and metadata.</li>
+                  <li><strong>Linking</strong> — similarity + overlap heuristics to group related material into stories.</li>
+                  <li><strong>Summarization</strong> — navigation aids with explicit auditability and correction paths.</li>
+                  <li><strong>Uncertainty modeling</strong> — confidence, corroboration, and contradiction surfacing.</li>
                 </ul>
               </div>
 
               <div>
-                <h3 className="text-lg font-bold text-slate-900 mb-3">Data Storage</h3>
-                <ul className="space-y-2 text-slate-700">
-                  <li>☁️ <strong>Oracle Cloud</strong> — Media file storage</li>
-                  <li>🔗 <strong>Supabase Storage</strong> — Backups & exports</li>
-                  <li>📦 <strong>LanceDB</strong> — Experimental vector store</li>
+                <h3 className="text-lg font-bold text-brand-navy mb-3">Verification</h3>
+                <ul className="space-y-2 text-brand-warm-600">
+                  <li><strong>Provenance</strong> — preserve source identity and direct URLs wherever possible.</li>
+                  <li><strong>Reproducibility</strong> — structured outputs that can be re-queried and re-audited.</li>
+                  <li><strong>Human correction</strong> — mechanisms to challenge and improve automated inferences.</li>
                 </ul>
               </div>
 
               <div>
-                <h3 className="text-lg font-bold text-slate-900 mb-3">Frontend</h3>
-                <ul className="space-y-2 text-slate-700">
-                  <li>⚛️ <strong>Next.js 14</strong> — React framework</li>
-                  <li>🎨 <strong>Tailwind CSS</strong> — Styling</li>
-                  <li>🗺️ <strong>Mapbox</strong> — Geolocation maps</li>
-                  <li>📈 <strong>Recharts</strong> — Data visualization</li>
+                <h3 className="text-lg font-bold text-brand-navy mb-3">Frontend</h3>
+                <ul className="space-y-2 text-brand-warm-600">
+                  <li><strong>Geospatial context</strong> — maps and timelines that stay linked to evidence.</li>
+                  <li><strong>Exploration UX</strong> — fast search, filtering, and cross-linking across entities.</li>
+                  <li><strong>Readable defaults</strong> — design optimized for understanding, not endless scrolling.</li>
                 </ul>
               </div>
             </div>
@@ -288,24 +312,25 @@ export default function SentinelSystemPage() {
         </section>
 
         {/* CTA Section */}
-        <section className="mt-16 pt-16 border-t border-slate-200">
-          <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-12 rounded-lg text-center">
-            <h2 className="text-3xl font-bold mb-4">Want to Build With Sentinel?</h2>
-            <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
-              Integrate Peripheral intelligence into your tools via our MCP server or REST API
+        <section className="mt-16 pt-16 border-t border-brand-neutral-100">
+          <div className="bg-gradient-to-r from-brand-abyss to-brand-navy text-white p-12 rounded-lg text-center">
+            <h2 className="text-3xl font-bold mb-4">Working on Accountability Research?</h2>
+            <p className="text-xl text-brand-warm-200 mb-8 max-w-2xl mx-auto">
+              If you&apos;re an NGO or researcher, tell us what you&apos;re investigating. We&apos;ll show you how Sentinel can help
+              you move from fragmented coverage to structured, source-linked understanding.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Link
-                href="/about"
-                className="inline-block px-8 py-4 bg-white text-slate-900 rounded-lg hover:bg-slate-100 transition-colors font-semibold"
+                href="/contact"
+                className="inline-block px-8 py-4 bg-white text-brand-navy rounded-lg hover:bg-brand-neutral-100 transition-colors font-semibold"
               >
-                Contact Us
+                Request Access
               </Link>
               <a
                 href="https://github.com/peripheralresearch"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-block px-8 py-4 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors font-semibold"
+                className="inline-block px-8 py-4 bg-brand-navy text-white rounded-lg hover:bg-brand-navy/80 transition-colors font-semibold"
               >
                 View on GitHub
               </a>

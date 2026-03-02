@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
+import Link from 'next/link'
 import {
   Navigation,
   Hero,
@@ -137,6 +139,73 @@ export default function LandingPage() {
       </section>
 
       <StatsBanner />
+
+      {/* How Sentinel Works Section */}
+      <section className="py-24 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-slate-900 mb-4">
+              How Sentinel Works
+            </h2>
+            <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+              Our intelligence pipeline transforms raw OSINT data into structured, verified intelligence
+            </p>
+          </div>
+
+          <div className="mb-12">
+            <Image
+              src="/images/sentinel-pipeline.png"
+              alt="Sentinel OSINT Intelligence Pipeline"
+              width={2736}
+              height={1154}
+              className="w-full h-auto rounded-lg shadow-2xl"
+              priority={false}
+            />
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 mb-12">
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <h3 className="text-lg font-bold text-slate-900 mb-3">📡 Data Collection</h3>
+              <p className="text-slate-600 text-sm leading-relaxed">
+                Sentinel monitors 100+ OSINT sources including Telegram channels, RSS feeds, and social media. 
+                Every post is captured, timestamped, and stored with full source attribution.
+              </p>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <h3 className="text-lg font-bold text-slate-900 mb-3">🧠 NLP Enrichment</h3>
+              <p className="text-slate-600 text-sm leading-relaxed">
+                Our pipeline extracts entities, analyzes sentiment, generates summaries, and identifies military signals 
+                using state-of-the-art NLP models. Each article is enriched with structured metadata.
+              </p>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <h3 className="text-lg font-bold text-slate-900 mb-3">📰 Story Generation</h3>
+              <p className="text-slate-600 text-sm leading-relaxed">
+                Related articles are automatically clustered into stories with geolocation, entity tags, and confidence scores. 
+                Everything is source-linked and verifiable.
+              </p>
+            </div>
+          </div>
+
+          <div className="text-center space-x-4">
+            <Link 
+              href="/about"
+              className="inline-block px-6 py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              Learn More About Us
+            </Link>
+            <Link
+              href="/sentinel-system"
+              className="inline-block px-6 py-3 bg-white text-slate-900 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              Deep Dive: Inside Sentinel
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <Footer />
     </main>
   )

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import './globals.css'
 import GlobeWipeOverlay from './components/GlobeWipeOverlay'
 
@@ -20,6 +21,7 @@ export default function RootLayout({
       <body style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif' }}>
         <GlobeWipeOverlay />
         {children}
+        <SpeedInsights />
       </body>
     </html>
   )

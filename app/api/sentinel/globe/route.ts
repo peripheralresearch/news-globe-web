@@ -184,7 +184,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (postsError) {
+    const postsTimedOut = Boolean(postsError?.message?.includes('statement timeout'));
+    if (postsError && !postsTimedOut) {
       console.error('Globe API - Location posts error:', postsError);
       return NextResponse.json(
         {
@@ -194,6 +195,13 @@ export async function GET(request: NextRequest) {
         },
         { status: 500 }
       );
+    }
+
+    if (postsTimedOut) {
+      console.warn(
+        `Globe API - Posts timed out even after fallback; serving locations without post details (hours=${hours})`
+      );
+      locationPosts = [];
     }
 
     // A retry may have changed the aggregates; re-validate before continuing.
@@ -291,6 +299,7 @@ export async function GET(request: NextRequest) {
 	            requested_hours: requestedHours,
 	            served_hours: hours,
 	            all_time_requested: allTimeRequested,
+	            posts_timed_out: postsTimedOut,
 	          },
 	        },
 	      },

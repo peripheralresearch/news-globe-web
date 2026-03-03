@@ -834,11 +834,11 @@ export default function Home() {
         return null
       }
 
-      const newsItems: NewsItem[] = []
-      const locations: LocationAggregate[] = []
+	      const newsItems: NewsItem[] = []
+	      const locations: LocationAggregate[] = []
 
-      for (const loc of result.data.locations || []) {
-        if (!Array.isArray(loc.news_items) || !loc.coordinates) continue
+	      for (const loc of result.data.locations || []) {
+	        if (!Array.isArray(loc.news_items) || !loc.coordinates) continue
 
         const mappedNewsItems = loc.news_items.map((s: any) => ({
           id: s.id,
@@ -852,23 +852,23 @@ export default function Home() {
           mediaUrl: s.media_url || null,
         }))
 
-        if (mappedNewsItems.length === 0) continue
+	        if (mappedNewsItems.length > 0) {
+	          const firstItem = mappedNewsItems[0]
+	          newsItems.push({
+	            id: firstItem.id,
+	            title: firstItem.title,
+	            summary: firstItem.summary,
+	            created: firstItem.created,
+	            location: loc.entity_name,
+	            coordinates: loc.coordinates,
+	            newsItemCount: loc.news_item_count,
+	          })
+	        }
 
-        const firstItem = mappedNewsItems[0]
-        newsItems.push({
-          id: firstItem.id,
-          title: firstItem.title,
-          summary: firstItem.summary,
-          created: firstItem.created,
-          location: loc.entity_name,
-          coordinates: loc.coordinates,
-          newsItemCount: loc.news_item_count,
-        })
-
-        locations.push({
-          name: loc.entity_name,
-          locationSubtype: loc.location_subtype,
-          coordinates: loc.coordinates,
+	        locations.push({
+	          name: loc.entity_name,
+	          locationSubtype: loc.location_subtype,
+	          coordinates: loc.coordinates,
           defaultZoom: loc.default_zoom,
           newsItemCount: loc.news_item_count,
           newsItems: mappedNewsItems,

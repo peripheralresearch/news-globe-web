@@ -1870,6 +1870,7 @@ function MapMarker({
   theme?: Theme;
 }) {
   const themeConfig = THEME_CONFIG[theme]
+  const markerContentRef = useRef<HTMLDivElement | null>(null)
   const [isPressed, setIsPressed] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [ripples, setRipples] = useState<number[]>([])
@@ -1953,6 +1954,21 @@ function MapMarker({
   // Show panel if hovered OR clicked
   const showPanel = isHovered || isClicked
 
+  // Promote the active marker's Mapbox container above other marker siblings.
+  useEffect(() => {
+    const markerContent = markerContentRef.current
+    if (!markerContent) return
+
+    const markerContainer = (
+      markerContent.closest('.mapboxgl-marker') ||
+      markerContent.parentElement
+    ) as HTMLDivElement | null
+
+    if (!markerContainer) return
+
+    markerContainer.style.setProperty('z-index', showPanel ? '4000' : '100', 'important')
+  }, [showPanel])
+
   const dotShadow = theme === 'dark'
     ? '0 1px 3px rgba(255,255,255,0.4), inset 0 0 2px rgba(255,255,255,0.2)'
     : '0 0 10px rgba(250,212,77,0.55), 0 0 18px rgba(255,255,255,0.45), inset 0 0 2px rgba(255,255,255,0.2)'
@@ -1966,7 +1982,7 @@ function MapMarker({
   const panelTop = armStartY - 10
 
   return (
-    <div className="relative" style={{ zIndex: showPanel ? 2000 : 100 }}>
+    <div ref={markerContentRef} className="relative" style={{ zIndex: showPanel ? 2000 : 100 }}>
       <div
         className="rounded-full transition-all duration-100 ease-out cursor-pointer"
         style={{

@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "check:merge-markers": "bash -lc \"if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- . ':(exclude)package-lock.json'; then echo 'Merge conflict markers detected'; exit 1; fi\"",
     "test": "jest",
     "convert-pin": "node scripts/convert-pin-to-yellow.js"
   },

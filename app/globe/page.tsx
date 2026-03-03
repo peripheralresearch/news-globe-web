@@ -193,6 +193,7 @@ interface GlobeData {
 const NEWS_ITEM_SUMMARY_LIMIT = 220
 const INITIAL_GLOBE_LIMIT = 35
 const FULL_GLOBE_LIMIT = 150
+const DEFAULT_GLOBE_HOURS = 168 // 7 days; "all time" queries time out in Supabase/Vercel
 
 const IDLE_TIMEOUT = 10000 // 10 seconds before rotation starts
 const ROTATION_SPEED = 0.015 // degrees per frame (slow rotation)
@@ -821,7 +822,7 @@ export default function Home() {
   // Load globe data
   const fetchGlobePage = useCallback(async (limit: number) => {
     try {
-      const response = await fetch(`/api/sentinel/globe?limit=${limit}&hours=0`)
+      const response = await fetch(`/api/sentinel/globe?limit=${limit}&hours=${DEFAULT_GLOBE_HOURS}`)
       if (!response.ok) {
         console.error(`Globe API (limit=${limit}) responded with ${response.status}`)
         return null

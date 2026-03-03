@@ -2019,7 +2019,6 @@ function MapMarker({
               top: `${armStartY}px`,
               width: `${armDiagX + armHoriz}px`,
               height: `${armDiagY}px`,
->>>>>>> feat/brand-colors-v1
               zIndex: 49,
               overflow: 'visible',
             }}

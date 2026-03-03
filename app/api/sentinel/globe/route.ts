@@ -64,7 +64,8 @@ export async function GET(request: NextRequest) {
 
     // Parse and validate query parameters
     const hoursParam = searchParams.get('hours');
-    const hours = hoursParam ? Math.max(0, Math.min(parseInt(hoursParam, 10), 720)) : 0; // 0 = all time
+    const requestedHours = hoursParam ? Math.max(0, Math.min(parseInt(hoursParam, 10), 720)) : 0; // 0 = all time
+    let hours = requestedHours;
 
     const limitParam = searchParams.get('limit');
     const maxLocations = limitParam ? Math.max(1, Math.min(parseInt(limitParam, 10), 50)) : 30;
@@ -73,11 +74,34 @@ export async function GET(request: NextRequest) {
 
     // Step 1: Get aggregated location data with post counts (OPTIMIZED - single query)
     // NOTE: This query should filter for event_location to get where news events actually occurred
-    const { data: locationAggregates, error: aggregateError } = await supabase
-      .rpc('get_location_aggregates_v2', {
-        hours_ago: hours,
+    async function fetchLocationAggregates(hoursAgo: number) {
+      return supabase.rpc('get_location_aggregates_v2', {
+        hours_ago: hoursAgo,
         max_locations: maxLocations,
       });
+    }
+
+    let locationAggregates: unknown = null;
+    let aggregateError: any = null;
+
+    {
+      const res = await fetchLocationAggregates(hours);
+      locationAggregates = res.data;
+      aggregateError = res.error;
+    }
+
+    // If the requested time window is too expensive, fall back to a smaller window.
+    // This prevents the globe UI from showing "no data" due to DB statement timeouts.
+    if (aggregateError?.message?.includes('statement timeout') && hours > 0) {
+      const fallbackHours = Math.min(hours, 48);
+      console.warn(
+        `Globe API - Statement timeout for hours=${hours}; retrying with hours=${fallbackHours}`
+      );
+      hours = fallbackHours;
+      const res = await fetchLocationAggregates(hours);
+      locationAggregates = res.data;
+      aggregateError = res.error;
+    }
 
     if (aggregateError) {
       console.error('Globe API - Location aggregates error:', aggregateError);
@@ -203,6 +227,8 @@ export async function GET(request: NextRequest) {
           locations: formattedLocations,
           stats: {
             total_locations: formattedLocations.length,
+            requested_hours: requestedHours,
+            served_hours: hours,
           },
         },
       },

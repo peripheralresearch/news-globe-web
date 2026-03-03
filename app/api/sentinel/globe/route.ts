@@ -74,21 +74,18 @@ export async function GET(request: NextRequest) {
 
     // Step 1: Get aggregated location data with post counts (OPTIMIZED - single query)
     // NOTE: This query should filter for event_location to get where news events actually occurred
-    async function fetchLocationAggregates(hoursAgo: number) {
-      return supabase.rpc('get_location_aggregates_v2', {
+    const fetchLocationAggregates = async (hoursAgo: number) =>
+      supabase.rpc('get_location_aggregates_v2', {
         hours_ago: hoursAgo,
         max_locations: maxLocations,
       });
-    }
 
     let locationAggregates: unknown = null;
     let aggregateError: any = null;
 
-    {
-      const res = await fetchLocationAggregates(hours);
-      locationAggregates = res.data;
-      aggregateError = res.error;
-    }
+    const firstAttempt = await fetchLocationAggregates(hours);
+    locationAggregates = firstAttempt.data;
+    aggregateError = firstAttempt.error;
 
     // If the requested time window is too expensive, fall back to a smaller window.
     // This prevents the globe UI from showing "no data" due to DB statement timeouts.

@@ -80,12 +80,12 @@ export async function GET(request: NextRequest) {
         max_locations: maxLocations,
       });
 
-    let locationAggregates: unknown = null;
-    let aggregateError: any = null;
+    let locationAggregates: LocationAggregate[] | null = null;
+    let aggregateError: { message?: string } | null = null;
 
     const firstAttempt = await fetchLocationAggregates(hours);
-    locationAggregates = firstAttempt.data;
-    aggregateError = firstAttempt.error;
+    locationAggregates = (firstAttempt.data as LocationAggregate[] | null) ?? null;
+    aggregateError = firstAttempt.error as { message?: string } | null;
 
     // If the requested time window is too expensive, fall back to a smaller window.
     // This prevents the globe UI from showing "no data" due to DB statement timeouts.
@@ -96,8 +96,8 @@ export async function GET(request: NextRequest) {
       );
       hours = fallbackHours;
       const res = await fetchLocationAggregates(hours);
-      locationAggregates = res.data;
-      aggregateError = res.error;
+      locationAggregates = (res.data as LocationAggregate[] | null) ?? null;
+      aggregateError = res.error as { message?: string } | null;
     }
 
     if (aggregateError) {
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
     console.log(`Globe API - Found ${locationAggregates.length} event locations`);
 
     // Step 2: Get post details for these locations (OPTIMIZED - single query with limit)
-    const locationIds = (locationAggregates as LocationAggregate[]).map(l => l.location_id);
+    const locationIds = locationAggregates.map(l => l.location_id);
 
     const { data: locationPosts, error: postsError } = await supabase
       .rpc('get_location_posts', {
@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
       locationPostsMap.get(post.location_id)!.push(post);
     }
 
-    const formattedLocations: LocationData[] = (locationAggregates as LocationAggregate[]).map(loc => {
+    const formattedLocations: LocationData[] = locationAggregates.map(loc => {
       const posts = locationPostsMap.get(loc.location_id) || [];
 
       // Dedupe posts per location by stable internal id to avoid repeated cards

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
 
 function useCountUp(target: number, duration = 2300) {
@@ -48,13 +49,35 @@ export default function Hero() {
     <section className="pt-0 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="max-w-4xl mx-auto text-center">
-          {/* Subheading */}
-          <p className="text-lg md:text-xl text-brand-warm-600 dark:text-brand-warm-400 mb-10 max-w-2xl mx-auto">
-            Open&#8209;Source Intelligence from the edge of the world—where signals surface first.
+          {/* Headline */}
+          <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-brand-ink dark:text-white">
+            Evidence-first OSINT for accountability research.
+          </h1>
+
+          {/* Value prop */}
+          <p className="mt-6 text-lg md:text-xl text-brand-warm-600 dark:text-brand-warm-400 max-w-3xl mx-auto leading-relaxed">
+            Trace every claim to primary sources, explore relationships across fragmented coverage, and quantify uncertainty
+            instead of inheriting certainty.
           </p>
 
+          {/* CTAs */}
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+            <Link
+              href="/contact"
+              className="w-full sm:w-auto inline-flex justify-center px-7 py-3 bg-brand-ink text-white rounded-lg hover:bg-brand-ink/90 transition-colors font-semibold"
+            >
+              Request Access
+            </Link>
+            <Link
+              href="/sentinel-system"
+              className="w-full sm:w-auto inline-flex justify-center px-7 py-3 bg-white dark:bg-transparent text-brand-ink dark:text-white border border-brand-neutral-300 dark:border-brand-neutral-600 rounded-lg hover:bg-brand-neutral-50 dark:hover:bg-white/5 transition-colors font-semibold"
+            >
+              How Sentinel Works
+            </Link>
+          </div>
+
           {/* Trust Indicators */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-brand-warm-600 dark:text-brand-warm-400">
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-brand-warm-600 dark:text-brand-warm-400">
             <span className="bg-brand-yellow px-2 py-0.5">
               <span className={`inline-block transition-opacity duration-700 ${loaded ? 'opacity-100' : 'animate-pulse opacity-40'}`}>
                 {loaded ? `${displayStories.toLocaleString()} stories tracked` : '\u2014\u2014\u2014 stories tracked'}
@@ -63,7 +86,7 @@ export default function Hero() {
             <span className="hidden sm:inline">&bull;</span>
             <span className="bg-brand-yellow px-2 py-0.5">
               <span className={`inline-block transition-opacity duration-700 ${loaded ? 'opacity-100' : 'animate-pulse opacity-40'}`}>
-                {loaded ? `${displayNewsItems.toLocaleString()} sources analyzed` : '\u2014\u2014\u2014 sources analyzed'}
+                {loaded ? `${displayNewsItems.toLocaleString()} news items analyzed` : '\u2014\u2014\u2014 news items analyzed'}
               </span>
             </span>
             <span className="hidden sm:inline">&bull;</span>

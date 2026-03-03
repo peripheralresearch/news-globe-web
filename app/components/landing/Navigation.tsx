@@ -74,7 +74,7 @@ export default function Navigation() {
               className="inline-block group/btn relative overflow-hidden bg-brand-ink text-white text-sm font-medium px-6 py-2"
             >
               <span className="absolute inset-0 bg-brand-yellow -translate-x-full group-hover/btn:translate-x-0 transition-transform duration-300 ease-out" />
-              <span className="relative z-10 group-hover/btn:text-brand-navy transition-colors duration-300">Join Waitlist</span>
+              <span className="relative z-10 group-hover/btn:text-brand-ink transition-colors duration-300">Join Waitlist</span>
             </a>
           </div>
 
@@ -119,7 +119,7 @@ export default function Navigation() {
                 className="inline-block group/btn relative overflow-hidden bg-brand-ink text-white text-sm font-medium px-6 py-2 text-center"
               >
                 <span className="absolute inset-0 bg-brand-yellow -translate-x-full group-hover/btn:translate-x-0 transition-transform duration-300 ease-out" />
-                <span className="relative z-10 group-hover/btn:text-brand-navy transition-colors duration-300">Join Waitlist</span>
+                <span className="relative z-10 group-hover/btn:text-brand-ink transition-colors duration-300">Join Waitlist</span>
               </a>
             </div>
           </div>

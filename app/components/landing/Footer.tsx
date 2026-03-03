@@ -16,23 +16,23 @@ export default function Footer() {
   ]
 
   return (
-    <footer className="border-t border-slate-200 dark:border-neutral-800 py-12 px-6">
+    <footer className="border-t border-brand-neutral-100 dark:border-brand-navy py-12 px-6">
       <div className="max-w-7xl mx-auto">
         {/* Main Footer Content */}
         <div className="grid md:grid-cols-3 gap-8 mb-8">
           {/* Left: Brand */}
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+            <h3 className="text-lg font-semibold text-brand-ink dark:text-white mb-2">
               The Peripheral
             </h3>
-            <p className="text-sm text-slate-600 dark:text-neutral-400">
-              From noise to knowledge.
+            <p className="text-sm text-brand-warm-600 dark:text-brand-warm-400">
+              The truth is out of focus.
             </p>
           </div>
 
           {/* Center: Links */}
           <div>
-            <h4 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">
+            <h4 className="text-sm font-semibold text-brand-ink dark:text-white mb-3">
               Links
             </h4>
             <ul className="space-y-2">
@@ -40,7 +40,7 @@ export default function Footer() {
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="text-sm text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                    className="text-sm text-brand-warm-600 dark:text-brand-warm-400 hover:text-brand-ink dark:hover:text-white transition-colors"
                   >
                     {link.label}
                   </Link>
@@ -51,7 +51,7 @@ export default function Footer() {
 
           {/* Right: Contact */}
           <div>
-            <h4 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">
+            <h4 className="text-sm font-semibold text-brand-ink dark:text-white mb-3">
               Contact
             </h4>
             <ul className="space-y-2">
@@ -59,7 +59,7 @@ export default function Footer() {
                 <li key={email}>
                   <a
                     href={`mailto:${email}`}
-                    className="text-sm text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                    className="text-sm text-brand-warm-600 dark:text-brand-warm-400 hover:text-brand-ink dark:hover:text-white transition-colors"
                   >
                     {email}
                   </a>
@@ -70,8 +70,8 @@ export default function Footer() {
         </div>
 
         {/* Bottom: Copyright */}
-        <div className="pt-8 border-t border-slate-200 dark:border-neutral-800">
-          <p className="text-sm text-slate-600 dark:text-neutral-400 text-center">
+        <div className="pt-8 border-t border-brand-neutral-100 dark:border-brand-navy">
+          <p className="text-sm text-brand-warm-600 dark:text-brand-warm-400 text-center">
             &copy; {currentYear} The Peripheral. All rights reserved.
           </p>
         </div>

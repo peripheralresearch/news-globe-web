@@ -95,15 +95,7 @@ function relativeTime(dateStr: string): string {
 }
 
 function signalIcon(category: string): string {
-  switch (category) {
-    case 'weapon_tracking': return '\u{1F4A5}'      // explosion
-    case 'alert_lifecycle': return '\u{1F6A8}'      // siren
-    case 'il_alert':        return '\u{1F534}'      // red circle
-    case 'threat_advisory': return '\u26A0\uFE0F'   // warning
-    case 'air_defense':     return '\u{1F6E1}\uFE0F'// shield
-    case 'all_clear':       return '\u2705'         // check
-    default:                return '\u{1F4E1}'      // satellite
-  }
+  return ''
 }
 
 // Formats a signal_type string for display: underscores to spaces, title case.

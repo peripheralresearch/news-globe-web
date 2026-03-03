@@ -64,20 +64,53 @@ export async function GET(request: NextRequest) {
 
     // Parse and validate query parameters
     const hoursParam = searchParams.get('hours');
-    const hours = hoursParam ? Math.max(0, Math.min(parseInt(hoursParam, 10), 720)) : 0; // 0 = all time
+    const requestedHours = hoursParam ? Math.max(0, Math.min(parseInt(hoursParam, 10), 720)) : 0; // 0 = all time
+    const allTimeRequested = requestedHours === 0;
+    // "All time" is not feasible for these RPCs under typical serverless statement timeouts.
+    // Serve a large-but-safe default window instead of erroring.
+    let hours = allTimeRequested ? 168 : requestedHours;
 
     const limitParam = searchParams.get('limit');
     const maxLocations = limitParam ? Math.max(1, Math.min(parseInt(limitParam, 10), 50)) : 30;
 
     console.log(`Globe API - Fetching top ${maxLocations} event locations from last ${hours} hours`);
 
+    const fallbackHoursFor = (h: number) => {
+      // Prefer 7d over 48h when reducing from large windows; keep shrinking if needed.
+      if (h === 0) return 168;
+      if (h > 168) return 168;
+      if (h > 48) return 48;
+      if (h > 24) return 24;
+      return h;
+    };
+
     // Step 1: Get aggregated location data with post counts (OPTIMIZED - single query)
     // NOTE: This query should filter for event_location to get where news events actually occurred
-    const { data: locationAggregates, error: aggregateError } = await supabase
-      .rpc('get_location_aggregates_v2', {
-        hours_ago: hours,
+    const fetchLocationAggregates = async (hoursAgo: number) =>
+      supabase.rpc('get_location_aggregates_v2', {
+        hours_ago: hoursAgo,
         max_locations: maxLocations,
       });
+
+    let locationAggregates: LocationAggregate[] | null = null;
+    let aggregateError: { message?: string } | null = null;
+
+    const firstAttempt = await fetchLocationAggregates(hours);
+    locationAggregates = (firstAttempt.data as LocationAggregate[] | null) ?? null;
+    aggregateError = firstAttempt.error as { message?: string } | null;
+
+    // If the requested time window is too expensive, fall back to a smaller window.
+    // This prevents the globe UI from showing "no data" due to DB statement timeouts.
+    if (aggregateError?.message?.includes('statement timeout') && hours > 0) {
+      const fallbackHours = fallbackHoursFor(hours);
+      console.warn(
+        `Globe API - Statement timeout for hours=${hours}; retrying with hours=${fallbackHours}`
+      );
+      hours = fallbackHours;
+      const res = await fetchLocationAggregates(hours);
+      locationAggregates = (res.data as LocationAggregate[] | null) ?? null;
+      aggregateError = res.error as { message?: string } | null;
+    }
 
     if (aggregateError) {
       console.error('Globe API - Location aggregates error:', aggregateError);
@@ -116,16 +149,43 @@ export async function GET(request: NextRequest) {
     console.log(`Globe API - Found ${locationAggregates.length} event locations`);
 
     // Step 2: Get post details for these locations (OPTIMIZED - single query with limit)
-    const locationIds = (locationAggregates as LocationAggregate[]).map(l => l.location_id);
+    const locationIds = locationAggregates.map(l => l.location_id);
 
-    const { data: locationPosts, error: postsError } = await supabase
-      .rpc('get_location_posts', {
-        location_ids: locationIds,
-        hours_ago: hours,
-        posts_per_location: 20, // Limit to top 20 posts per location
-      });
+    let { data: locationPosts, error: postsError } = await supabase.rpc('get_location_posts', {
+      location_ids: locationIds,
+      hours_ago: hours,
+      posts_per_location: 20, // Limit to top 20 posts per location
+    });
 
-    if (postsError) {
+    // Posts RPC can time out even if aggregates succeeds (e.g. "all time" or large windows).
+    // Retry the whole flow with a smaller window.
+    if (postsError?.message?.includes('statement timeout')) {
+      const fallbackHours = fallbackHoursFor(hours);
+      if (fallbackHours !== hours) {
+        console.warn(
+          `Globe API - Posts statement timeout for hours=${hours}; retrying with hours=${fallbackHours}`
+        );
+        hours = fallbackHours;
+
+        const aggRetry = await fetchLocationAggregates(hours);
+        locationAggregates = (aggRetry.data as LocationAggregate[] | null) ?? null;
+        aggregateError = aggRetry.error as { message?: string } | null;
+
+        if (!aggregateError && locationAggregates && locationAggregates.length > 0) {
+          const retryIds = locationAggregates.map(l => l.location_id);
+          const retryPosts = await supabase.rpc('get_location_posts', {
+            location_ids: retryIds,
+            hours_ago: hours,
+            posts_per_location: 20,
+          });
+          locationPosts = retryPosts.data;
+          postsError = retryPosts.error;
+        }
+      }
+    }
+
+    const postsTimedOut = Boolean(postsError?.message?.includes('statement timeout'));
+    if (postsError && !postsTimedOut) {
       console.error('Globe API - Location posts error:', postsError);
       return NextResponse.json(
         {
@@ -134,6 +194,39 @@ export async function GET(request: NextRequest) {
           error: postsError.message,
         },
         { status: 500 }
+      );
+    }
+
+    if (postsTimedOut) {
+      console.warn(
+        `Globe API - Posts timed out even after fallback; serving locations without post details (hours=${hours})`
+      );
+      locationPosts = [];
+    }
+
+    // A retry may have changed the aggregates; re-validate before continuing.
+    if (!locationAggregates || locationAggregates.length === 0) {
+      console.log('Globe API - No locations found in time range (post fetch stage)');
+      return NextResponse.json(
+        {
+          status: 'success',
+          data: {
+            locations: [],
+            stats: {
+              total_locations: 0,
+              requested_hours: requestedHours,
+              served_hours: hours,
+              all_time_requested: allTimeRequested,
+            },
+          },
+        },
+        {
+          status: 200,
+          headers: {
+            'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+            'CDN-Cache-Control': 'max-age=300',
+          },
+        }
       );
     }
 
@@ -146,7 +239,7 @@ export async function GET(request: NextRequest) {
       locationPostsMap.get(post.location_id)!.push(post);
     }
 
-    const formattedLocations: LocationData[] = (locationAggregates as LocationAggregate[]).map(loc => {
+    const formattedLocations: LocationData[] = locationAggregates.map(loc => {
       const posts = locationPostsMap.get(loc.location_id) || [];
 
       // Dedupe posts per location by stable internal id to avoid repeated cards
@@ -201,11 +294,15 @@ export async function GET(request: NextRequest) {
         status: 'success',
         data: {
           locations: formattedLocations,
-          stats: {
-            total_locations: formattedLocations.length,
-          },
-        },
-      },
+	          stats: {
+	            total_locations: formattedLocations.length,
+	            requested_hours: requestedHours,
+	            served_hours: hours,
+	            all_time_requested: allTimeRequested,
+	            posts_timed_out: postsTimedOut,
+	          },
+	        },
+	      },
       {
         status: 200,
         headers: {

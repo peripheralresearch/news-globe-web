@@ -94,7 +94,7 @@ export default async function LandingPage() {
   const stats = await getStats()
 
   return (
-    <main className="min-h-screen bg-white dark:bg-black">
+    <main className="min-h-screen bg-white dark:bg-brand-abyss">
       <Navigation />
       <Hero
         totalStories={stats.totalStories}
@@ -115,7 +115,7 @@ Or simpler version without passing stats to Hero:
 ```tsx
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-white dark:bg-black">
+    <main className="min-h-screen bg-white dark:bg-brand-abyss">
       <Navigation />
       <Hero />
       <LatestIntelligence />
@@ -131,8 +131,8 @@ export default function LandingPage() {
 ## Design System
 
 ### Colors
-- **Light Mode**: white bg, slate-900 text, blue-600 CTAs, slate-50 cards, slate-200 borders
-- **Dark Mode**: black bg, white text, blue-400 CTAs, neutral-900 cards, neutral-800 borders
+- **Light Mode**: white bg, brand-navy headings, brand-warm-600 body text, brand-neutral-50 sections, brand-neutral-100 borders
+- **Dark Mode**: brand-abyss bg, white text, brand-yellow accents, brand-navy cards, brand-navy borders
 
 ### Typography
 - **Body**: Inter (default from layout)

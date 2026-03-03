@@ -1966,7 +1966,7 @@ function MapMarker({
   const panelTop = armStartY - 10
 
   return (
-    <div className="relative" style={{ zIndex: showPanel ? 1 : 100 }}>
+    <div className="relative" style={{ zIndex: showPanel ? 2000 : 100 }}>
       <div
         className="rounded-full transition-all duration-100 ease-out cursor-pointer"
         style={{

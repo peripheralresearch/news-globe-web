@@ -1994,7 +1994,7 @@ function MapMarker({
 
       {/* Connector arm from marker to panel with a clean elbow bend (no elbow node) */}
       {showPanel && (() => {
-        const armStroke = theme === 'dark' ? 'rgba(255,255,255,0.62)' : 'rgba(250,212,77,0.9)'
+        const armStroke = theme === 'dark' ? 'rgba(255,255,255,0.62)' : 'rgba(13,13,13,0.95)'
         return (
           <svg
             className="absolute pointer-events-none"

@@ -13,7 +13,7 @@ type Theme = 'light' | 'dark'
 const THEME_CONFIG = {
   light: {
     mapStyle: 'mapbox://styles/mapbox/light-v11',
-    dotColor: '#1a1a2e',
+    dotColor: '#FAD44D',
     fog: {
       color: '#ffffff',
       highColor: '#f0f0f0',
@@ -75,7 +75,7 @@ const THEME_CONFIG = {
 function injectThemeStyles(theme: Theme) {
   const config = THEME_CONFIG[theme]
   const dotColor = config.dotColor
-  const dotRgb = theme === 'dark' ? '255, 255, 255' : '26, 26, 46'
+  const dotRgb = theme === 'dark' ? '255, 255, 255' : '250, 212, 77'
 
   const styleId = 'globey-ripple-animation'
   let styleEl = document.getElementById(styleId) as HTMLStyleElement | null
@@ -129,6 +129,32 @@ function injectThemeStyles(theme: Theme) {
 
     .hover-card-enter {
       animation: slideInFade 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    @keyframes armGrow {
+      0% {
+        opacity: 0;
+        stroke-dashoffset: 1;
+      }
+      15% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 1;
+        stroke-dashoffset: 0;
+      }
+    }
+
+    .connector-arm-diag {
+      stroke-dasharray: 1;
+      stroke-dashoffset: 1;
+      animation: armGrow 0.2s cubic-bezier(0.3, 0.7, 0.2, 1) forwards;
+    }
+
+    .connector-arm-horiz {
+      stroke-dasharray: 1;
+      stroke-dashoffset: 1;
+      animation: armGrow 0.14s cubic-bezier(0.3, 0.7, 0.2, 1) 0.18s forwards;
     }
 
     .ripple-effect {
@@ -491,6 +517,7 @@ export default function Home() {
 
       // Re-add layers with theme colors
       const dotColor = config.dotColor
+      const innerGlowColor = theme === 'light' ? '#FFFFFF' : dotColor
 
       if (!map.current.getLayer('event-locations-dots')) {
         map.current.addLayer({
@@ -540,7 +567,7 @@ export default function Home() {
           source: 'event-locations',
           paint: {
             'circle-radius': ['interpolate', ['linear'], ['coalesce', ['get', 'newsItemCount'], 1], 1, 5, 25, 8],
-            'circle-color': dotColor,
+            'circle-color': innerGlowColor,
             'circle-opacity': 0.25,
             'circle-blur': 0.5,
           },
@@ -622,6 +649,8 @@ export default function Home() {
     // Re-add custom layers and data after style loads
     map.current.once('style.load', () => {
       if (!map.current) return
+      const dotColor = theme === 'light' ? '#FAD44D' : '#FFFFFF'
+      const innerGlowColor = theme === 'light' ? '#FFFFFF' : dotColor
 
       // Restore globe projection and atmosphere
       map.current.setProjection('globe')
@@ -657,7 +686,7 @@ export default function Home() {
               1, 1.5,
               25, 4
             ],
-            'circle-color': '#1a1a2e',
+            'circle-color': dotColor,
             'circle-opacity': 0.9,
           },
         })
@@ -677,7 +706,7 @@ export default function Home() {
               1, 12,
               25, 18
             ],
-            'circle-color': '#1a1a2e',
+            'circle-color': dotColor,
             'circle-opacity': 0.1,
             'circle-blur': 1,
           },
@@ -697,7 +726,7 @@ export default function Home() {
               1, 8,
               25, 12
             ],
-            'circle-color': '#1a1a2e',
+            'circle-color': dotColor,
             'circle-opacity': 0.15,
             'circle-blur': 0.8,
           },
@@ -717,7 +746,7 @@ export default function Home() {
               1, 5,
               25, 8
             ],
-            'circle-color': '#1a1a2e',
+            'circle-color': innerGlowColor,
             'circle-opacity': 0.25,
             'circle-blur': 0.5,
           },
@@ -1926,7 +1955,15 @@ function MapMarker({
 
   const dotShadow = theme === 'dark'
     ? '0 1px 3px rgba(255,255,255,0.4), inset 0 0 2px rgba(255,255,255,0.2)'
-    : '0 1px 3px rgba(26,26,46,0.4), inset 0 0 2px rgba(255,255,255,0.1)'
+    : '0 0 10px rgba(250,212,77,0.55), 0 0 18px rgba(255,255,255,0.45), inset 0 0 2px rgba(255,255,255,0.2)'
+
+  const armDiagX = 42
+  const armDiagY = 66
+  const armHoriz = 28
+  const armStartX = baseSize / 2
+  const armStartY = -armDiagY
+  const panelLeft = armStartX + armDiagX + armHoriz - 1
+  const panelTop = armStartY - 10
 
   return (
     <div className="relative" style={{ zIndex: showPanel ? 1 : 100 }}>
@@ -1955,14 +1992,56 @@ function MapMarker({
         ))}
       </div>
 
+      {/* Connector arm from marker to panel with a clean elbow bend (no elbow node) */}
+      {showPanel && (() => {
+        const armStroke = theme === 'dark' ? 'rgba(255,255,255,0.62)' : 'rgba(250,212,77,0.9)'
+        return (
+          <svg
+            className="absolute pointer-events-none"
+            style={{
+              left: `${armStartX}px`,
+              top: `${armStartY}px`,
+              width: `${armDiagX + armHoriz}px`,
+              height: `${armDiagY}px`,
+              zIndex: 49,
+              overflow: 'visible',
+            }}
+          >
+            <line
+              className="connector-arm-diag"
+              x1="0"
+              y1={armDiagY}
+              x2={armDiagX}
+              y2="0"
+              pathLength={1}
+              stroke={armStroke}
+              strokeWidth="2.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <line
+              className="connector-arm-horiz"
+              x1={armDiagX}
+              y1="0"
+              x2={armDiagX + armHoriz}
+              y2="0"
+              pathLength={1}
+              stroke={armStroke}
+              strokeWidth="2.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )
+      })()}
+
       {/* Hover/Click Panel with slide-in fade animation */}
       {showPanel && (
         <div
           className="absolute hover-card-enter"
           style={{
-            left: `${baseSize + 20}px`,
-            top: '50%',
-            transform: 'translateY(-50%)',
+            left: `${panelLeft}px`,
+            top: `${panelTop}px`,
             width: isExpanded ? '400px' : '320px',
             zIndex: 50,
             transition: 'width 0.2s ease-out',

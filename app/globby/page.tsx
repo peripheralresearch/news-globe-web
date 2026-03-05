@@ -934,7 +934,7 @@ export default function Home() {
   // Load globe data
   const fetchGlobePage = useCallback(async (limit: number) => {
     try {
-      const response = await fetch(`/api/sentinel/globe?limit=${limit}&hours=${DEFAULT_GLOBE_HOURS}`)
+      const response = await fetch(`/api/sentinel/globby?limit=${limit}&hours=${DEFAULT_GLOBE_HOURS}`)
       if (!response.ok) {
         console.error(`Globe API (limit=${limit}) responded with ${response.status}`)
         return null

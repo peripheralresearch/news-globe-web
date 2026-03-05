@@ -1,7 +1,13 @@
 'use client'
 
 import Link from 'next/link'
+import { Bebas_Neue } from 'next/font/google'
 import { useState, useEffect, useRef } from 'react'
+
+const bebasNeue = Bebas_Neue({
+  weight: '400',
+  subsets: ['latin'],
+})
 
 function useCountUp(target: number, duration = 2300) {
   const [value, setValue] = useState(0)
@@ -50,8 +56,8 @@ export default function Hero() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="max-w-4xl mx-auto text-center">
           {/* Headline */}
-          <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-brand-ink dark:text-white">
-            Evidence-first OSINT for accountability research.
+          <h1 className={`${bebasNeue.className} text-4xl md:text-6xl tracking-[0.03em] leading-none text-brand-ink dark:text-white`}>
+            OSINT REPORTING
           </h1>
 
           {/* Value prop */}

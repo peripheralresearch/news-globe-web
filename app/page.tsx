@@ -7,6 +7,9 @@ import {
   StatsBanner,
   Footer,
   DecorativeGlobe,
+  TrendingLeaderboard,
+  SentimentTracker,
+  SentinelPipeline,
 } from '@/app/components/landing'
 
 export const metadata: Metadata = {
@@ -91,52 +94,8 @@ export default function LandingPage() {
       <DecorativeGlobe />
       <Hero />
 
-      {/* Featured Articles */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Main Feature Article */}
-            <div className="md:row-span-2 group">
-              <div className="bg-brand-neutral-100 aspect-[4/3] rounded-lg mb-4" />
-              <span className="text-xs font-medium uppercase tracking-wider text-brand-warm-400">Featured</span>
-              <h3 className="text-2xl font-bold text-brand-ink mt-1 mb-2 group-hover:underline">
-                Headline for the main feature article goes here
-              </h3>
-              <p className="text-brand-warm-600 text-sm leading-relaxed">
-                A brief summary of the lead story. This placeholder represents the primary editorial
-                piece that anchors the front page layout.
-              </p>
-              <span className="text-xs text-brand-warm-400 mt-3 block">12 sources &bull; 2h ago</span>
-            </div>
-
-            {/* Secondary Article */}
-            <div className="group">
-              <div className="bg-brand-neutral-100 aspect-[16/9] rounded-lg mb-4" />
-              <span className="text-xs font-medium uppercase tracking-wider text-brand-warm-400">Analysis</span>
-              <h3 className="text-lg font-bold text-brand-ink mt-1 mb-2 group-hover:underline">
-                Secondary story headline sits here
-              </h3>
-              <p className="text-brand-warm-600 text-sm leading-relaxed">
-                Supporting context for the second story with a concise summary of verified developments.
-              </p>
-              <span className="text-xs text-brand-warm-400 mt-3 block">8 sources &bull; 4h ago</span>
-            </div>
-
-            {/* Tertiary Article */}
-            <div className="group">
-              <div className="bg-brand-neutral-100 aspect-[16/9] rounded-lg mb-4" />
-              <span className="text-xs font-medium uppercase tracking-wider text-brand-warm-400">Briefing</span>
-              <h3 className="text-lg font-bold text-brand-ink mt-1 mb-2 group-hover:underline">
-                Third story headline placed here
-              </h3>
-              <p className="text-brand-warm-600 text-sm leading-relaxed">
-                A short intelligence briefing summarising key signals from multiple open sources.
-              </p>
-              <span className="text-xs text-brand-warm-400 mt-3 block">5 sources &bull; 6h ago</span>
-            </div>
-          </div>
-        </div>
-      </section>
+      <SentimentTracker />
+      <TrendingLeaderboard />
 
       <StatsBanner />
 
@@ -153,14 +112,7 @@ export default function LandingPage() {
           </div>
 
           <div className="mb-12">
-            <Image
-              src="/images/sentinel-pipeline.png"
-              alt="Sentinel OSINT Intelligence Pipeline"
-              width={2736}
-              height={1154}
-              className="w-full h-auto rounded-lg shadow-2xl"
-              priority={false}
-            />
+            <SentinelPipeline />
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 mb-12">

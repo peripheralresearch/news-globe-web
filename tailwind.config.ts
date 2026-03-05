@@ -9,6 +9,11 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        display: ['Bebas Neue', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'monospace'],
+        body: ['DM Sans', 'sans-serif'],
+      },
       colors: {
         brand: {
           yellow: '#FAD44D',
@@ -35,6 +40,31 @@ const config: Config = {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic':
           'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
+      },
+      keyframes: {
+        'flow-slow': {
+          '0%': { left: '0%', opacity: '0' },
+          '10%': { opacity: '1' },
+          '90%': { opacity: '1' },
+          '100%': { left: '100%', opacity: '0' },
+        },
+        'flow-medium': {
+          '0%': { left: '0%', opacity: '0' },
+          '10%': { opacity: '1' },
+          '90%': { opacity: '1' },
+          '100%': { left: '100%', opacity: '0' },
+        },
+        'flow-fast': {
+          '0%': { left: '0%', opacity: '0' },
+          '10%': { opacity: '1' },
+          '90%': { opacity: '1' },
+          '100%': { left: '100%', opacity: '0' },
+        },
+      },
+      animation: {
+        'flow-slow': 'flow-slow 3s ease-in-out infinite',
+        'flow-medium': 'flow-medium 2.5s ease-in-out infinite',
+        'flow-fast': 'flow-fast 2s ease-in-out infinite',
       },
     },
   },

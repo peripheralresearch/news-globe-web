@@ -112,19 +112,26 @@ export async function GET(request: NextRequest) {
         for (const link of locationLinks) {
           if (!link?.entity_location) continue;
 
-          const location = link.entity_location;
-          if (!location.lat || !location.lon) continue;
+          // Supabase relation payload can be an object or an array depending on join shape.
+          const rawLocation = Array.isArray(link.entity_location)
+            ? link.entity_location[0]
+            : link.entity_location;
+          if (!rawLocation) continue;
 
-          const locationKey = `${location.lat},${location.lon}`;
+          const lat = Number(rawLocation.lat);
+          const lon = Number(rawLocation.lon);
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+          const locationKey = `${lat},${lon}`;
 
           if (!locationMap.has(locationKey)) {
             locationMap.set(locationKey, {
-              location_name: location.name,
-              latitude: location.lat,
-              longitude: location.lon,
-              location_type: location.location_type || 'city',
-              location_subtype: location.location_type || 'city',
-              default_zoom: location.default_zoom || 8,
+              location_name: rawLocation.name,
+              latitude: lat,
+              longitude: lon,
+              location_type: rawLocation.location_type || 'city',
+              location_subtype: rawLocation.location_type || 'city',
+              default_zoom: rawLocation.default_zoom || 8,
               post_count: 0,
               news_items: [],
             });
@@ -136,13 +143,17 @@ export async function GET(request: NextRequest) {
           // Extract channel info from Telegram URL
           const match = post.link?.match(/t\.me\/([^/]+)\/(\d+)/);
           const channelUsername = match?.[1] || 'unknown';
+          const sourcePayload = (post as any).osint_source;
+          const sourceName = Array.isArray(sourcePayload)
+            ? sourcePayload[0]?.name
+            : sourcePayload?.name;
 
           loc.news_items.push({
             id: post.id,
             title: post.title?.substring(0, 100) || null,
             summary: post.content?.substring(0, 500) || post.title || null,
             created: post.created,
-            source_name: post.osint_source?.name || channelUsername,
+            source_name: sourceName || channelUsername,
             source_url: post.link || '',
             has_photo: post.media_type === 'photo',
             has_video: post.media_type === 'video' || post.media_type === 'animation',

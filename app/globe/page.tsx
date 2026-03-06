@@ -2042,9 +2042,9 @@ export default function Home() {
         style={{ minHeight: '100vh', minWidth: '100vw' }}
       />
 
-      {/* Loading overlay */}
+      {/* Loading overlay — translucent blur so the globe shows through */}
       {isLoading && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black">
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center backdrop-blur-md bg-black/40">
           <div className="relative w-10 h-10 mb-4">
             <div className="absolute inset-0 rounded-full border-2 border-white/10" />
             <div

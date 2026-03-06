@@ -373,6 +373,11 @@ export default function Home() {
   const rotationFrameRef = useRef<number | null>(null)
   const zoomOutTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Idle preview refs
+  const [idlePreviewLocation, setIdlePreviewLocation] = useState<LocationAggregate | null>(null)
+  const idlePreviewTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const startIdlePreviewFnRef = useRef<(() => void) | null>(null)
+
   // Entrance animation refs
   const entranceAnimationRef = useRef<number | null>(null)
   const entranceStartTimeRef = useRef<number | null>(null)
@@ -1154,6 +1159,7 @@ export default function Home() {
           location={location}
           animationDelay={animationDelay}
           isClicked={clickedLocation?.name === location.name}
+          isIdlePreview={idlePreviewLocation?.name === location.name}
           theme={theme}
           onFocusNewsItem={() => {
             if (!map.current) return
@@ -1190,6 +1196,13 @@ export default function Home() {
           }
         }
 
+        // Stop idle preview
+        if (idlePreviewTimerRef.current) {
+          clearInterval(idlePreviewTimerRef.current)
+          idlePreviewTimerRef.current = null
+        }
+        setIdlePreviewLocation(null)
+
         // Reset interaction timer
         lastInteractionRef.current = Date.now()
 
@@ -1219,7 +1232,7 @@ export default function Home() {
     return () => {
       markersRef.current.forEach(marker => marker.remove())
     }
-  }, [globeData, isCountryLocation, triggerRingAnimation, clickedLocation, theme])
+  }, [globeData, isCountryLocation, triggerRingAnimation, clickedLocation, idlePreviewLocation, theme])
 
   // Entrance animation with smooth deceleration (ease-out)
   const animateEntrance = useCallback(() => {
@@ -1484,6 +1497,15 @@ export default function Home() {
             console.log('🎬 Starting entrance animation')
             entranceStartTimeRef.current = Date.now()
             entranceAnimationRef.current = requestAnimationFrame(animateEntrance)
+
+            // Start idle preview 3s into the entrance animation
+            setTimeout(() => {
+              if (!map.current || !globeDataRef.current) return
+              // Only start if still in entrance/idle rotation (user hasn't interacted)
+              if (!hasPlayedEntranceRef.current || isRotatingRef.current) {
+                startIdlePreviewFnRef.current?.()
+              }
+            }, 3000)
           }
 
           // Animate dot pulsing glow with chaotic, per-dot phase offsets
@@ -1647,6 +1669,12 @@ export default function Home() {
                 rotationFrameRef.current = null
               }
             }
+            // Stop idle preview on any user interaction
+            if (idlePreviewTimerRef.current) {
+              clearInterval(idlePreviewTimerRef.current)
+              idlePreviewTimerRef.current = null
+            }
+            setIdlePreviewLocation(null)
           })
         })
 
@@ -1682,6 +1710,9 @@ export default function Home() {
       if (zoomOutTimeoutRef.current) {
         clearTimeout(zoomOutTimeoutRef.current)
       }
+      if (idlePreviewTimerRef.current) {
+        clearInterval(idlePreviewTimerRef.current)
+      }
 
       // Clean up map - map.remove() handles all event listener cleanup
       if (map.current) {
@@ -1709,6 +1740,51 @@ export default function Home() {
     }
   }, [stopRotation])
 
+  // Get locations currently visible in the viewport
+  const getVisibleLocations = useCallback((locations: LocationAggregate[]) => {
+    if (!map.current) return []
+    const canvas = map.current.getCanvas()
+    return locations.filter(loc => {
+      const point = map.current!.project(loc.coordinates)
+      return point.x > 80 && point.x < canvas.width - 400 &&
+             point.y > 80 && point.y < canvas.height - 80
+    })
+  }, [])
+
+  // Start idle preview cycling — picks a random visible location every 8s
+  const idlePreviewCurrentNameRef = useRef<string | null>(null)
+  const startIdlePreview = useCallback(() => {
+    // Don't start if already running
+    if (idlePreviewTimerRef.current) return
+    const data = globeDataRef.current
+    if (!data || !map.current) return
+
+    const pickRandom = () => {
+      if (!map.current) return
+      const visible = getVisibleLocations(data.locations)
+      if (visible.length === 0) return
+      // Pick a random location different from current preview
+      const candidates = visible.length > 1
+        ? visible.filter(loc => loc.name !== idlePreviewCurrentNameRef.current)
+        : visible
+      const pick = candidates[Math.floor(Math.random() * candidates.length)]
+      idlePreviewCurrentNameRef.current = pick.name
+      setIdlePreviewLocation(pick)
+    }
+
+    // Pick immediately
+    pickRandom()
+
+    // Then cycle every 8 seconds
+    const timer = setInterval(pickRandom, 8000)
+    idlePreviewTimerRef.current = timer
+  }, [getVisibleLocations])
+
+  // Keep fn ref in sync for use inside effects with stale closures
+  useEffect(() => {
+    startIdlePreviewFnRef.current = startIdlePreview
+  }, [startIdlePreview])
+
   // Idle rotation animation
   const animateRotation = useCallback(() => {
     if (!map.current || !isRotatingRef.current) return
@@ -1734,6 +1810,8 @@ export default function Home() {
     if (timeSinceInteraction >= IDLE_TIMEOUT && !isRotatingRef.current && map.current) {
       isRotatingRef.current = true
       animateRotation()
+      // Also restart idle preview when rotation resumes
+      startIdlePreviewFnRef.current?.()
     }
   }, [animateRotation])
 
@@ -2016,12 +2094,14 @@ function MapMarker({
   location,
   animationDelay,
   isClicked = false,
+  isIdlePreview = false,
   theme = 'dark',
   onFocusNewsItem,
 }: {
   location: LocationAggregate;
   animationDelay: number;
   isClicked?: boolean;
+  isIdlePreview?: boolean;
   theme?: Theme;
   onFocusNewsItem?: () => void;
 }) {
@@ -2032,8 +2112,7 @@ function MapMarker({
   const [ripples, setRipples] = useState<number[]>([])
   const [panelView, setPanelView] = useState<'featured' | 'detail' | 'list'>('featured')
   const [detailItem, setDetailItem] = useState<LocationAggregate['newsItems'][number] | null>(null)
-  // Keep isExpanded as derived for width logic
-  const isExpanded = panelView !== 'featured'
+  // isExpanded is now derived below showPanel from effectivePanelView
   const [slideshowIndex, setSlideshowIndex] = useState(0)
   const slideshowTimerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -2153,8 +2232,11 @@ function MapMarker({
     }
   }, [isClicked, mediaPreviews.length])
 
-  // Show panel if hovered OR clicked
-  const showPanel = isHovered || isClicked
+  // Show panel if hovered OR clicked OR idle-previewing
+  const showPanel = isHovered || isClicked || isIdlePreview
+  // Lock to featured view during idle preview
+  const effectivePanelView = isIdlePreview ? 'featured' : panelView
+  const isExpanded = effectivePanelView !== 'featured'
 
   // Promote the active marker's Mapbox container above other marker siblings.
   useEffect(() => {
@@ -2336,14 +2418,14 @@ function MapMarker({
                 </div>
               )
 
-              return panelView === 'featured' ? (
+              return effectivePanelView === 'featured' ? (
               // Featured view — location header + slideshow + synced article info
               <div>
                 {locationHeader}
                 {slideshowBlock}
                 <div className="p-3">
                   {/* Synced article info — crossfades with each slide, clickable to detail */}
-                  {currentSlide && (
+                  {currentSlide ? (
                     <div className="relative cursor-pointer" style={{ minHeight: '52px' }}>
                       {mediaPreviews.map((item, i) => (
                         <div
@@ -2399,7 +2481,36 @@ function MapMarker({
                         </div>
                       ))}
                     </div>
-                  )}
+                  ) : featuredItem ? (
+                    // No media — show featured news item text only
+                    <div
+                      className={`${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-gray-50'} -mx-3 px-3 py-1 rounded cursor-pointer`}
+                      onClick={(e) => handleViewDetail(e, featuredItem)}
+                    >
+                      {isTelegramSource(featuredItem.sourceUrl) ? (
+                        <>
+                          <div className={`text-[10px] font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} mb-1 flex items-center gap-1.5`}>
+                            <img src={sourceIconForUrl(featuredItem.sourceUrl)} alt="" className="inline-block w-3 h-3 align-middle" style={{ filter: themeConfig.panel.iconFilter }} />
+                            <span className="line-clamp-1">{featuredItem.sourceName || 'Telegram'}</span>
+                          </div>
+                          <p className={`text-[10px] ${themeConfig.panel.textMuted} leading-relaxed line-clamp-2`}>
+                            {featuredItem.summary || featuredItem.title || 'Untitled'}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <h3 className={`text-xs font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} leading-snug line-clamp-2`}>
+                            {featuredItem.title || 'Untitled'}
+                          </h3>
+                          {featuredItem.summary && featuredItem.summary !== featuredItem.title && (
+                            <p className={`text-[10px] ${themeConfig.panel.textMuted} leading-relaxed mt-0.5 line-clamp-2`}>
+                              {featuredItem.summary}
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ) : null}
                   {/* See more button */}
                   {location.newsItemCount > 1 && (
                     <div
@@ -2416,7 +2527,7 @@ function MapMarker({
                   )}
                 </div>
               </div>
-            ) : panelView === 'detail' && detailItem ? (
+            ) : effectivePanelView === 'detail' && detailItem ? (
               // Detail view — full news item
               <div>
                 {locationHeader}
@@ -2632,7 +2743,7 @@ function MapMarker({
         </div>
 
         {/* Secondary entity panel — disabled until person/org entity extraction catches up */}
-        {false && panelView === 'detail' && detailItem && (entityLoading || entityData) && (
+        {false && effectivePanelView === 'detail' && detailItem && (entityLoading || entityData) && (
           <div
             className="absolute hover-card-enter"
             style={{

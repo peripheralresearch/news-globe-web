@@ -2030,8 +2030,19 @@ function MapMarker({
   const [isPressed, setIsPressed] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [ripples, setRipples] = useState<number[]>([])
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [expandedNewsItemId, setExpandedNewsItemId] = useState<string | null>(null)
+  const [panelView, setPanelView] = useState<'featured' | 'detail' | 'list'>('featured')
+  const [detailItem, setDetailItem] = useState<LocationAggregate['newsItems'][number] | null>(null)
+  // Keep isExpanded as derived for width logic
+  const isExpanded = panelView !== 'featured'
+  const [slideshowIndex, setSlideshowIndex] = useState(0)
+  const slideshowTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Entity panel state
+  const [entityData, setEntityData] = useState<{
+    people: Array<{ name: string; role: string | null; rank: number | null; confidence: number | null }>
+    organisations: Array<{ name: string; orgType: string | null; rank: number | null; confidence: number | null }>
+  } | null>(null)
+  const [entityLoading, setEntityLoading] = useState(false)
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // Don't stop propagation so click can reach parent
@@ -2074,14 +2085,14 @@ function MapMarker({
 
   const handlePanelClick = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (location.newsItemCount > 1) {
-      setIsExpanded(!isExpanded)
-    }
   }
 
   const handleCloseExpanded = (e: React.MouseEvent) => {
     e.stopPropagation()
-    setIsExpanded(false)
+    setPanelView('featured')
+    setDetailItem(null)
+    setEntityData(null)
+    setEntityLoading(false)
   }
 
   const handlePanelWheel = (e: React.WheelEvent) => {
@@ -2094,22 +2105,53 @@ function MapMarker({
     e.stopPropagation()
   }
 
-  const handleNewsItemClick = (e: React.MouseEvent, newsItemId: string) => {
+  const handleViewDetail = (e: React.MouseEvent, item: LocationAggregate['newsItems'][number]) => {
     e.stopPropagation()
-    onFocusNewsItem?.()
-    setExpandedNewsItemId(expandedNewsItemId === newsItemId ? null : newsItemId)
+    setDetailItem(item)
+    setPanelView('detail')
+    // Fetch entities for this news item
+    if (item.id) {
+      setEntityLoading(true)
+      setEntityData(null)
+      fetch(`/api/sentinel/news-item/entities?id=${encodeURIComponent(item.id)}`)
+        .then(res => res.json())
+        .then(json => {
+          if (json.status === 'success') setEntityData(json.data)
+        })
+        .catch(() => {})
+        .finally(() => setEntityLoading(false))
+    }
   }
 
   // Size based on news item count (reduced by 50%)
   const baseSize = Math.min(6 + location.newsItemCount * 0.25, 10) * 0.85
 
-  // Get primary news item for the card
-  const primaryNewsItem = location.newsItems[0]
-  const primaryIsTelegram = isTelegramSource(primaryNewsItem?.sourceUrl)
-  const primaryTelegramChannelUrl = telegramChannelUrl(primaryNewsItem?.sourceUrl)
-  const displayTitle = primaryNewsItem?.title || location.name
-  const displaySummary = primaryNewsItem?.summary || `${location.newsItemCount} news items in this location`
-  const mediaPreviews = location.newsItems.filter(item => item.mediaUrl).slice(0, 2)
+  // Featured article: prioritise RSS with media, then RSS without, then Telegram with media
+  const featuredItem = (() => {
+    const rssWithMedia = location.newsItems.find(i => !isTelegramSource(i.sourceUrl) && i.mediaUrl)
+    if (rssWithMedia) return rssWithMedia
+    const rssAny = location.newsItems.find(i => !isTelegramSource(i.sourceUrl))
+    if (rssAny) return rssAny
+    const tgWithMedia = location.newsItems.find(i => i.mediaUrl)
+    if (tgWithMedia) return tgWithMedia
+    return location.newsItems[0] || null
+  })()
+  const featuredIsTelegram = isTelegramSource(featuredItem?.sourceUrl)
+  const mediaPreviews = location.newsItems.filter(item => item.mediaUrl).slice(0, 8)
+  const currentSlide = mediaPreviews.length > 0 ? mediaPreviews[slideshowIndex % mediaPreviews.length] : null
+
+  // Auto-cycle slideshow when panel is selected and we have multiple media items
+  useEffect(() => {
+    if (isClicked && mediaPreviews.length > 1) {
+      slideshowTimerRef.current = setInterval(() => {
+        setSlideshowIndex(prev => prev + 1)
+      }, 5000)
+      return () => { if (slideshowTimerRef.current) clearInterval(slideshowTimerRef.current) }
+    } else {
+      setSlideshowIndex(0)
+      if (slideshowTimerRef.current) clearInterval(slideshowTimerRef.current)
+    }
+  }, [isClicked, mediaPreviews.length])
 
   // Show panel if hovered OR clicked
   const showPanel = isHovered || isClicked
@@ -2222,7 +2264,7 @@ function MapMarker({
       })()}
 
       {/* Hover/Click Panel with slide-in fade animation */}
-      {showPanel && (
+      {showPanel && (<>
         <div
           className="absolute hover-card-enter"
           style={{
@@ -2243,48 +2285,260 @@ function MapMarker({
             onClick={handlePanelClick}
             style={panelSurfaceStyle}
           >
-            {!isExpanded ? (
-              // Collapsed view - shows primary story
-              <div className="p-3">
-                <div className="min-w-0 flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className={`text-sm font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} leading-tight line-clamp-1`}>
-                      {location.name}
-                    </h3>
-                    <p className={`text-[10px] ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-0.5`}>
-                      {locationCoords}
-                    </p>
-                  </div>
-                </div>
-                {mediaPreviews.length > 0 && (
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    {mediaPreviews.map((item, index) => (
-                      <div key={item.id || index} className={`relative h-20 rounded-lg overflow-hidden ${themeConfig.panel.imagePlaceholder}`}>
-                        <img
-                          src={`/api/proxy-image?url=${encodeURIComponent(item.mediaUrl as string)}`}
-                          alt={(item.title || location.name).substring(0, 60)}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none'
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <p className={`text-[11px] ${themeConfig.panel.textFaint} mt-2`}>
-                  {location.newsItemCount} {location.newsItemCount === 1 ? 'news item' : 'news items'}
-                </p>
-              </div>
-            ) : (
-              // Expanded view - shows all news items
-              <div className="p-3">
-                {/* Header with close button */}
-                <div className={`flex items-start justify-between mb-3 pb-2 border-b ${themeConfig.panel.divider}`}>
+            {(() => {
+              // Shared location header — always at very top
+              const locationHeader = (
+                <div className="px-3 pt-2.5 pb-1.5 flex items-start justify-between">
                   <div>
                     <h3 className={`text-sm font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>{location.name}</h3>
-                    <p className={`text-[10px] ${themeConfig.panel.textFaint}`}>{location.newsItemCount} {location.newsItemCount === 1 ? 'news item' : 'news items'}</p>
+                    <span className={`text-[9px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} font-mono`}>
+                      {lat.toFixed(4)}, {lng.toFixed(4)}
+                    </span>
                   </div>
+                  <span className={`text-[10px] ${themeConfig.panel.textFaint} mt-0.5`}>
+                    {location.newsItemCount} {location.newsItemCount === 1 ? 'item' : 'items'}
+                  </span>
+                </div>
+              )
+
+              // Shared slideshow component
+              const slideshowBlock = currentSlide && (
+                <div
+                  className={`relative h-40 overflow-hidden cursor-pointer ${themeConfig.panel.imagePlaceholder}`}
+                  onClick={(e) => { if (currentSlide) handleViewDetail(e, currentSlide) }}
+                >
+                  {mediaPreviews.map((item, i) => (
+                    <img
+                      key={item.id || i}
+                      src={`/api/proxy-image?url=${encodeURIComponent(item.mediaUrl as string)}`}
+                      alt={(item.title || location.name).substring(0, 60)}
+                      className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out"
+                      style={{ opacity: (slideshowIndex % mediaPreviews.length) === i ? 1 : 0 }}
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
+                  ))}
+                  {mediaPreviews.length > 1 && (
+                    <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
+                      {mediaPreviews.map((_, i) => (
+                        <div
+                          key={i}
+                          className="rounded-full transition-all duration-300"
+                          style={{
+                            width: (slideshowIndex % mediaPreviews.length) === i ? '12px' : '4px',
+                            height: '4px',
+                            backgroundColor: (slideshowIndex % mediaPreviews.length) === i
+                              ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)',
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+
+              return panelView === 'featured' ? (
+              // Featured view — location header + slideshow + synced article info
+              <div>
+                {locationHeader}
+                {slideshowBlock}
+                <div className="p-3">
+                  {/* Synced article info — crossfades with each slide, clickable to detail */}
+                  {currentSlide && (
+                    <div className="relative cursor-pointer" style={{ minHeight: '52px' }}>
+                      {mediaPreviews.map((item, i) => (
+                        <div
+                          key={item.id || i}
+                          className={`transition-opacity duration-700 ease-in-out ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-gray-50'} -mx-3 px-3 py-1 rounded`}
+                          style={{
+                            opacity: (slideshowIndex % mediaPreviews.length) === i ? 1 : 0,
+                            position: (slideshowIndex % mediaPreviews.length) === i ? 'relative' : 'absolute',
+                            top: 0, left: 0, right: 0,
+                            pointerEvents: (slideshowIndex % mediaPreviews.length) === i ? 'auto' : 'none',
+                          }}
+                          onClick={(e) => handleViewDetail(e, item)}
+                        >
+                          {isTelegramSource(item.sourceUrl) ? (
+                            <>
+                              <div className={`text-[10px] font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} mb-1 flex items-center gap-1.5`}>
+                                <img src={sourceIconForUrl(item.sourceUrl)} alt="" className="inline-block w-3 h-3 align-middle" style={{ filter: themeConfig.panel.iconFilter }} />
+                                <span className="line-clamp-1">{item.sourceName || 'Telegram'}</span>
+                              </div>
+                              <p className={`text-[10px] ${themeConfig.panel.textMuted} leading-relaxed line-clamp-2`}>
+                                {item.summary || item.title || 'Untitled'}
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              {(() => {
+                                const titleIsSnippet = item.title && item.summary && item.summary.startsWith(item.title.replace(/\.{3}$/, ''))
+                                return titleIsSnippet ? (
+                                  <>
+                                    <div className={`text-[10px] font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} mb-1 flex items-center gap-1.5`}>
+                                      <img src={sourceIconForUrl(item.sourceUrl)} alt="" className="inline-block w-3 h-3 align-middle" style={{ filter: themeConfig.panel.iconFilter }} />
+                                      <span className="line-clamp-1">{item.sourceName || 'Unknown source'}</span>
+                                    </div>
+                                    <p className={`text-[10px] ${themeConfig.panel.textMuted} leading-relaxed line-clamp-2`}>
+                                      {item.summary}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <h3 className={`text-xs font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} leading-snug line-clamp-2`}>
+                                      {item.title || 'Untitled'}
+                                    </h3>
+                                    {item.summary && item.summary !== item.title && (
+                                      <p className={`text-[10px] ${themeConfig.panel.textMuted} leading-relaxed mt-0.5 line-clamp-2`}>
+                                        {item.summary}
+                                      </p>
+                                    )}
+                                  </>
+                                )
+                              })()}
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* See more button */}
+                  {location.newsItemCount > 1 && (
+                    <div
+                      className={`mt-2 pt-2 border-t ${themeConfig.panel.dividerFaint} flex items-center justify-center cursor-pointer ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-gray-50'} -mx-3 px-3 pb-1 transition-colors`}
+                      onClick={(e) => { e.stopPropagation(); setPanelView('list') }}
+                    >
+                      <span className={`text-[11px] ${themeConfig.panel.textFaint}`}>
+                        See all {location.newsItemCount} items
+                      </span>
+                      <svg className={`w-3.5 h-3.5 ml-1 ${themeConfig.panel.textFaint}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : panelView === 'detail' && detailItem ? (
+              // Detail view — full news item
+              <div>
+                {locationHeader}
+                {/* Detail image */}
+                {detailItem.mediaUrl && (
+                  <div className={`relative h-48 overflow-hidden ${themeConfig.panel.imagePlaceholder}`}>
+                    <img
+                      src={`/api/proxy-image?url=${encodeURIComponent(detailItem.mediaUrl)}`}
+                      alt={detailItem.title?.substring(0, 60) || location.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none' }}
+                    />
+                  </div>
+                )}
+                <div className="p-3">
+                  {/* Back + close buttons */}
+                  <div className={`flex items-center justify-between mb-2 pb-2 border-b ${themeConfig.panel.divider}`}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setPanelView('featured'); setDetailItem(null) }}
+                      className={`flex items-center gap-1 text-[10px] ${themeConfig.panel.textFaint} ${theme === 'dark' ? 'hover:text-white' : 'hover:text-gray-800'} transition-colors`}
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                      Back
+                    </button>
+                    <button
+                      onClick={handleCloseExpanded}
+                      className={`p-1 ${theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'} rounded transition-colors`}
+                    >
+                      <svg className={`w-4 h-4 ${theme === 'dark' ? 'text-white/80' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  {/* Title */}
+                  <h3 className={`text-sm font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} leading-snug`}>
+                    {detailItem.title || 'Untitled'}
+                  </h3>
+                  {/* Source + time */}
+                  <div className="flex items-center gap-1.5 mt-1.5 mb-2">
+                    <img src={sourceIconForUrl(detailItem.sourceUrl)} alt="" className="w-3 h-3" style={{ filter: themeConfig.panel.iconFilter }} />
+                    <span className={`text-[10px] ${themeConfig.panel.textFaint}`}>{detailItem.sourceName || 'Unknown source'}</span>
+                    {detailItem.created && (
+                      <>
+                        <span className={`text-[10px] ${theme === 'dark' ? 'text-gray-600' : 'text-gray-300'}`}>·</span>
+                        <span className={`text-[10px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{formatDate(detailItem.created)}</span>
+                      </>
+                    )}
+                  </div>
+                  {/* Full summary */}
+                  {detailItem.summary && (
+                    <p className={`text-[11px] ${themeConfig.panel.textMuted} leading-relaxed`}>
+                      {detailItem.summary}
+                    </p>
+                  )}
+                  {/* Open source link */}
+                  {detailItem.sourceUrl && (
+                    <a
+                      href={detailItem.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`inline-flex items-center gap-1 mt-3 text-[10px] font-medium ${theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-500'} transition-colors`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Read full article
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </a>
+                  )}
+                  {/* See more items */}
+                  {location.newsItemCount > 1 && (
+                    <div
+                      className={`mt-3 pt-2 border-t ${themeConfig.panel.dividerFaint} flex items-center justify-between cursor-pointer ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-gray-50'} -mx-3 px-3 pb-1 transition-colors`}
+                      onClick={(e) => { e.stopPropagation(); setPanelView('list') }}
+                    >
+                      <span className={`text-[11px] ${themeConfig.panel.textFaint}`}>
+                        See all {location.newsItemCount} items
+                      </span>
+                      <svg className={`w-3.5 h-3.5 ${themeConfig.panel.textFaint}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              // List view — location header + slideshow + scrollable news items
+              <div>
+                {locationHeader}
+                {slideshowBlock}
+                {/* Synced article info below slideshow */}
+                {currentSlide && (
+                  <div className="px-3 pt-2 pb-1">
+                    <div className="relative" style={{ minHeight: '36px' }}>
+                      {mediaPreviews.map((item, i) => (
+                        <div
+                          key={item.id || i}
+                          className="transition-opacity duration-700 ease-in-out"
+                          style={{
+                            opacity: (slideshowIndex % mediaPreviews.length) === i ? 1 : 0,
+                            position: (slideshowIndex % mediaPreviews.length) === i ? 'relative' : 'absolute',
+                            top: 0, left: 0, right: 0,
+                          }}
+                        >
+                          <h4 className={`text-xs font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} leading-snug line-clamp-1`}>
+                            {item.title || 'Untitled'}
+                          </h4>
+                          {item.summary && item.summary !== item.title && (
+                            <p className={`text-[10px] ${themeConfig.panel.textMuted} leading-relaxed mt-0.5 line-clamp-1`}>
+                              {item.summary}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="p-3 pt-1">
+                {/* Close button + divider */}
+                <div className={`flex items-center justify-end mb-2 pb-2 border-b ${themeConfig.panel.divider}`}>
                   <button
                     onClick={handleCloseExpanded}
                     className={`p-1 ${theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'} rounded transition-colors`}
@@ -2302,14 +2556,13 @@ function MapMarker({
                   scrollbarColor: `${themeConfig.panel.scrollbar} transparent`
                 }}>
                   {location.newsItems.map((newsItem, index) => {
-                    const isNewsItemExpanded = expandedNewsItemId === newsItem.id
                     const newsItemIsTelegram = isTelegramSource(newsItem.sourceUrl)
                     const newsItemTelegramChannelUrl = telegramChannelUrl(newsItem.sourceUrl)
                     return (
                       <div
                         key={newsItem.id || index}
-                        className={`pb-3 border-b ${themeConfig.panel.dividerFaint} last:border-0 cursor-pointer transition-colors ${newsItem.summary ? `${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-gray-50'}` : ''}`}
-                        onClick={(e) => handleNewsItemClick(e, newsItem.id)}
+                        className={`pb-3 border-b ${themeConfig.panel.dividerFaint} last:border-0 cursor-pointer transition-colors ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
+                        onClick={(e) => handleViewDetail(e, newsItem)}
                       >
                         <div className="flex items-start gap-2">
                           {/* News item thumbnail */}
@@ -2319,9 +2572,7 @@ function MapMarker({
                                 src={`/api/proxy-image?url=${encodeURIComponent(newsItem.mediaUrl)}`}
                                 alt={newsItem.title?.substring(0, 50) || 'News item image'}
                                 className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none'
-                                }}
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                               />
                             </div>
                           )}
@@ -2332,21 +2583,9 @@ function MapMarker({
                               <>
                                 <div className={`text-[10px] font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} mb-1 flex items-center gap-1.5`}>
                                   <img src={sourceIconForUrl(newsItem.sourceUrl)} alt="" className="inline-block w-3 h-3 align-middle" style={{ filter: themeConfig.panel.iconFilter }} />
-                                  {newsItemTelegramChannelUrl ? (
-                                    <a
-                                      href={newsItemTelegramChannelUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className={`${theme === 'dark' ? 'text-gray-100 hover:text-white' : 'text-gray-800 hover:text-black'} line-clamp-1 underline-offset-2 hover:underline`}
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      {newsItem.sourceName || 'Telegram'}
-                                    </a>
-                                  ) : (
-                                    <span className="line-clamp-1">{newsItem.sourceName || 'Telegram'}</span>
-                                  )}
+                                  <span className="line-clamp-1">{newsItem.sourceName || 'Telegram'}</span>
                                 </div>
-                                <p className={`text-[10px] ${themeConfig.panel.textMuted} leading-relaxed ${isNewsItemExpanded ? '' : 'line-clamp-2'}`}>
+                                <p className={`text-[10px] ${themeConfig.panel.textMuted} leading-relaxed line-clamp-2`}>
                                   {newsItem.summary || newsItem.title || 'Untitled'}
                                 </p>
                               </>
@@ -2355,11 +2594,6 @@ function MapMarker({
                                 <h4 className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} leading-tight mb-1 line-clamp-2`}>
                                   {newsItem.title || 'Untitled'}
                                 </h4>
-                                {newsItem.summary && (
-                                  <p className={`text-[10px] ${themeConfig.panel.textMuted} leading-relaxed ${isNewsItemExpanded ? '' : 'line-clamp-2'}`}>
-                                    {newsItem.summary}
-                                  </p>
-                                )}
                               </>
                             )}
                             {(newsItem.sourceName || newsItem.created) && (
@@ -2378,11 +2612,6 @@ function MapMarker({
                                 )}
                               </p>
                             )}
-                            {newsItem.summary && (
-                              <div className={`text-[9px] ${theme === 'dark' ? 'text-white/50' : 'text-gray-500'} mt-1`}>
-                                {isNewsItemExpanded ? '▼ Click to collapse' : '▶ Click to expand'}
-                              </div>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -2390,10 +2619,108 @@ function MapMarker({
                   })}
                 </div>
               </div>
-            )}
+              </div>
+            )
+            })()}
           </div>
         </div>
-      )}
+
+        {/* Secondary entity panel — disabled until person/org entity extraction catches up */}
+        {false && panelView === 'detail' && detailItem && (entityLoading || entityData) && (
+          <div
+            className="absolute hover-card-enter"
+            style={{
+              left: `${panelLeft + 400 + 8}px`,
+              top: `${panelTop}px`,
+              width: '260px',
+              zIndex: 50,
+              pointerEvents: 'auto',
+            }}
+            onWheel={handlePanelWheel}
+            onTouchMove={handlePanelTouchMove}
+            onClick={handlePanelClick}
+          >
+            <div
+              className={`${themeConfig.panel.bg} backdrop-blur-3xl backdrop-saturate-0 border ${themeConfig.panel.border} rounded-xl ${themeConfig.panel.text} shadow-2xl`}
+              style={panelSurfaceStyle}
+            >
+              <div className="px-3 pt-2.5 pb-1.5">
+                <h3 className={`text-xs font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>Entities</h3>
+              </div>
+
+              {entityLoading ? (
+                <div className="px-3 pb-3 space-y-3">
+                  {[1, 2].map(i => (
+                    <div key={i} className="space-y-1.5">
+                      <div className={`h-2.5 w-16 rounded ${theme === 'dark' ? 'bg-white/10' : 'bg-gray-200'} animate-pulse`} />
+                      <div className={`h-2 w-24 rounded ${theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'} animate-pulse`} />
+                      <div className={`h-2 w-20 rounded ${theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'} animate-pulse`} />
+                    </div>
+                  ))}
+                </div>
+              ) : entityData ? (
+                <div className="px-3 pb-3 space-y-2.5 max-h-[420px] overflow-y-auto" style={{
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: `${themeConfig.panel.scrollbar} transparent`,
+                }}>
+                  {/* People */}
+                  {entityData.people.length > 0 && (
+                    <div>
+                      <div className={`flex items-center gap-1.5 mb-1.5 pb-1 border-b ${themeConfig.panel.dividerFaint}`}>
+                        <svg className={`w-3 h-3 ${themeConfig.panel.textFaint}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span className={`text-[10px] font-semibold ${themeConfig.panel.textFaint} uppercase tracking-wider`}>People</span>
+                        <span className={`text-[9px] ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`}>{entityData.people.length}</span>
+                      </div>
+                      <div className="space-y-1">
+                        {entityData.people.map((p, i) => (
+                          <div key={i} className="flex items-center gap-1.5">
+                            {p.rank === 1 && (
+                              <span className={`text-[8px] px-1 py-0.5 rounded ${theme === 'dark' ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'} font-medium`}>#1</span>
+                            )}
+                            <span className={`text-[11px] ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>{p.name}</span>
+                            {p.role && <span className={`text-[9px] ${themeConfig.panel.textFaint}`}>· {p.role}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Organisations */}
+                  {entityData.organisations.length > 0 && (
+                    <div>
+                      <div className={`flex items-center gap-1.5 mb-1.5 pb-1 border-b ${themeConfig.panel.dividerFaint}`}>
+                        <svg className={`w-3 h-3 ${themeConfig.panel.textFaint}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        <span className={`text-[10px] font-semibold ${themeConfig.panel.textFaint} uppercase tracking-wider`}>Organisations</span>
+                        <span className={`text-[9px] ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`}>{entityData.organisations.length}</span>
+                      </div>
+                      <div className="space-y-1">
+                        {entityData.organisations.map((o, i) => (
+                          <div key={i} className="flex items-center gap-1.5">
+                            {o.rank === 1 && (
+                              <span className={`text-[8px] px-1 py-0.5 rounded ${theme === 'dark' ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'} font-medium`}>#1</span>
+                            )}
+                            <span className={`text-[11px] ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>{o.name}</span>
+                            {o.orgType && <span className={`text-[9px] ${themeConfig.panel.textFaint}`}>· {o.orgType}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {entityData.people.length === 0 && entityData.organisations.length === 0 && (
+                    <p className={`text-[10px] ${themeConfig.panel.textFaint} py-2`}>No entities extracted for this item.</p>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
+      </>)}
     </div>
   )
 }

@@ -2452,6 +2452,11 @@ function MapMarker({
                       </svg>
                     </button>
                   </div>
+                  {/* Scrollable content area */}
+                  <div className="max-h-[360px] overflow-y-auto pr-1" style={{
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: `${themeConfig.panel.scrollbar} transparent`,
+                  }}>
                   {/* Title */}
                   <h3 className={`text-sm font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} leading-snug`}>
                     {detailItem.title || 'Untitled'}
@@ -2488,6 +2493,7 @@ function MapMarker({
                       </svg>
                     </a>
                   )}
+                  </div>{/* end scrollable content */}
                   {/* See more items */}
                   {location.newsItemCount > 1 && (
                     <div
@@ -2664,17 +2670,17 @@ function MapMarker({
                   scrollbarColor: `${themeConfig.panel.scrollbar} transparent`,
                 }}>
                   {/* People */}
-                  {entityData.people.length > 0 && (
+                  {entityData!.people.length > 0 && (
                     <div>
                       <div className={`flex items-center gap-1.5 mb-1.5 pb-1 border-b ${themeConfig.panel.dividerFaint}`}>
                         <svg className={`w-3 h-3 ${themeConfig.panel.textFaint}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                         <span className={`text-[10px] font-semibold ${themeConfig.panel.textFaint} uppercase tracking-wider`}>People</span>
-                        <span className={`text-[9px] ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`}>{entityData.people.length}</span>
+                        <span className={`text-[9px] ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`}>{entityData!.people.length}</span>
                       </div>
                       <div className="space-y-1">
-                        {entityData.people.map((p, i) => (
+                        {entityData!.people.map((p, i) => (
                           <div key={i} className="flex items-center gap-1.5">
                             {p.rank === 1 && (
                               <span className={`text-[8px] px-1 py-0.5 rounded ${theme === 'dark' ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'} font-medium`}>#1</span>
@@ -2688,17 +2694,17 @@ function MapMarker({
                   )}
 
                   {/* Organisations */}
-                  {entityData.organisations.length > 0 && (
+                  {entityData!.organisations.length > 0 && (
                     <div>
                       <div className={`flex items-center gap-1.5 mb-1.5 pb-1 border-b ${themeConfig.panel.dividerFaint}`}>
                         <svg className={`w-3 h-3 ${themeConfig.panel.textFaint}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                         </svg>
                         <span className={`text-[10px] font-semibold ${themeConfig.panel.textFaint} uppercase tracking-wider`}>Organisations</span>
-                        <span className={`text-[9px] ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`}>{entityData.organisations.length}</span>
+                        <span className={`text-[9px] ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`}>{entityData!.organisations.length}</span>
                       </div>
                       <div className="space-y-1">
-                        {entityData.organisations.map((o, i) => (
+                        {entityData!.organisations.map((o, i) => (
                           <div key={i} className="flex items-center gap-1.5">
                             {o.rank === 1 && (
                               <span className={`text-[8px] px-1 py-0.5 rounded ${theme === 'dark' ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'} font-medium`}>#1</span>
@@ -2712,7 +2718,7 @@ function MapMarker({
                   )}
 
                   {/* Empty state */}
-                  {entityData.people.length === 0 && entityData.organisations.length === 0 && (
+                  {entityData!.people.length === 0 && entityData!.organisations.length === 0 && (
                     <p className={`text-[10px] ${themeConfig.panel.textFaint} py-2`}>No entities extracted for this item.</p>
                   )}
                 </div>

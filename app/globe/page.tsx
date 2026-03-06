@@ -2045,15 +2045,17 @@ export default function Home() {
       {/* Loading overlay — translucent blur so the globe shows through */}
       {isLoading && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center backdrop-blur-md bg-black/40">
-          <div className="relative w-10 h-10 mb-4">
-            <div className="absolute inset-0 rounded-full border-2 border-white/10" />
-            <div
-              className="absolute inset-0 rounded-full border-2 border-transparent border-t-white/80"
-              style={{ animation: 'spin 1s linear infinite' }}
-            />
+          <div className="flex gap-2 mb-4">
+            {[0, 1, 2].map(i => (
+              <div
+                key={i}
+                className="w-2 h-2 rounded-full bg-white/80"
+                style={{ animation: `dotBounce 1.2s ease-in-out ${i * 0.15}s infinite` }}
+              />
+            ))}
           </div>
           <p className="text-[13px] text-white/60 tracking-wide">Loading globe data</p>
-          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+          <style>{`@keyframes dotBounce { 0%,80%,100% { opacity:0.3; transform:scale(0.8) } 40% { opacity:1; transform:scale(1.2) } }`}</style>
         </div>
       )}
 

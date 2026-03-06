@@ -2042,6 +2042,21 @@ export default function Home() {
         style={{ minHeight: '100vh', minWidth: '100vw' }}
       />
 
+      {/* Loading overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black">
+          <div className="relative w-10 h-10 mb-4">
+            <div className="absolute inset-0 rounded-full border-2 border-white/10" />
+            <div
+              className="absolute inset-0 rounded-full border-2 border-transparent border-t-white/80"
+              style={{ animation: 'spin 1s linear infinite' }}
+            />
+          </div>
+          <p className="text-[13px] text-white/60 tracking-wide">Loading globe data</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+        </div>
+      )}
+
       {/* Top Right Controls */}
       {globeData && !isLoading && !selectedLocation && (
         <div className="absolute top-4 right-4 z-10 flex gap-2">

@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
-import GlobeWipeOverlay from './components/GlobeWipeOverlay'
 
 export const metadata: Metadata = {
   title: 'The Peripheral',
@@ -25,7 +24,6 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
       </head>
       <body style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif' }}>
-        <GlobeWipeOverlay />
         {children}
         <Analytics />
         <SpeedInsights />

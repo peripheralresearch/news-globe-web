@@ -1,16 +1,5 @@
 import type { Metadata } from 'next'
-import Image from 'next/image'
-import Link from 'next/link'
-import {
-  Navigation,
-  Hero,
-  StatsBanner,
-  Footer,
-  DecorativeGlobe,
-  TrendingLeaderboard,
-  SentimentTracker,
-  SentinelPipeline,
-} from '@/app/components/landing'
+import GlobeView from '@/app/components/GlobeView'
 
 export const metadata: Metadata = {
   title: 'The Peripheral — OSINT Intelligence Platform',
@@ -81,84 +70,18 @@ const jsonLdSchemas = [
   },
 ]
 
-export default function LandingPage() {
+export default function RootPage() {
   return (
-    <main className="min-h-screen bg-white dark:bg-brand-abyss">
+    <>
+      {/* Prefetch globe API data so it's already in-flight before JS hydrates */}
+      <link rel="preload" href="/api/sentinel/globe?limit=35&hours=168" as="fetch" crossOrigin="anonymous" />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(jsonLdSchemas),
         }}
       />
-      <Navigation />
-      <DecorativeGlobe />
-      <Hero />
-
-      <SentimentTracker />
-      <TrendingLeaderboard />
-
-      <StatsBanner />
-
-      {/* How Sentinel Works Section */}
-      <section className="py-24 bg-brand-neutral-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-brand-ink mb-4">
-              How Sentinel Works
-            </h2>
-            <p className="text-xl text-brand-warm-600 max-w-3xl mx-auto">
-              Our intelligence pipeline transforms raw OSINT data into structured, verified intelligence
-            </p>
-          </div>
-
-          <div className="mb-12">
-            <SentinelPipeline />
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 mb-12">
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h3 className="text-lg font-bold text-brand-ink mb-3">Data Collection</h3>
-              <p className="text-brand-warm-600 text-sm leading-relaxed">
-                Sentinel monitors 100+ OSINT sources including Telegram channels, RSS feeds, and social media.
-                Every post is captured, timestamped, and stored with full source attribution.
-              </p>
-            </div>
-
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h3 className="text-lg font-bold text-brand-ink mb-3">NLP Enrichment</h3>
-              <p className="text-brand-warm-600 text-sm leading-relaxed">
-                Our pipeline extracts entities, analyzes sentiment, generates summaries, and identifies military signals
-                using state-of-the-art NLP models. Each article is enriched with structured metadata.
-              </p>
-            </div>
-
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h3 className="text-lg font-bold text-brand-ink mb-3">Story Generation</h3>
-              <p className="text-brand-warm-600 text-sm leading-relaxed">
-                Related articles are automatically clustered into stories with geolocation, entity tags, and confidence scores.
-                Everything is source-linked and verifiable.
-              </p>
-            </div>
-          </div>
-
-          <div className="text-center space-x-4">
-            <Link
-              href="/about"
-              className="inline-block px-6 py-3 bg-brand-ink text-white rounded-lg hover:bg-brand-ink/90 transition-colors"
-            >
-              Learn More About Us
-            </Link>
-            <Link
-              href="/sentinel-system"
-              className="inline-block px-6 py-3 bg-white text-brand-ink border border-brand-neutral-300 rounded-lg hover:bg-brand-neutral-50 transition-colors"
-            >
-              Deep Dive: Inside Sentinel
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <Footer />
-    </main>
+      <GlobeView />
+    </>
   )
 }

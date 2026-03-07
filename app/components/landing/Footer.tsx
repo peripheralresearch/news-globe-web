@@ -4,9 +4,10 @@ export default function Footer() {
   const currentYear = new Date().getFullYear()
 
   const footerLinks = [
+    { label: 'Home', href: '/home' },
     { label: 'About', href: '/about' },
     { label: 'Intelligence', href: '/stories' },
-    { label: 'Globe', href: '/globe' },
+    { label: 'Globe', href: '/' },
     { label: 'Contact', href: '/contact' },
   ]
 

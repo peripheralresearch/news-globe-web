@@ -2440,17 +2440,15 @@ function MapMarker({
             onClick={handlePanelClick}
             style={panelSurfaceStyle}
           >
-            {isExpanded && (
-              <button
-                onClick={handleCloseExpanded}
-                className={`absolute top-2 right-2 z-20 p-1 ${theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'} rounded transition-colors`}
-                aria-label="Close panel"
-              >
-                <svg className={`w-4 h-4 ${theme === 'dark' ? 'text-white/80' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
+            <button
+              onClick={handleCloseExpanded}
+              className={`absolute top-2 right-2 z-20 p-1 ${theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'} rounded transition-colors`}
+              aria-label="Close panel"
+            >
+              <svg className={`w-4 h-4 ${theme === 'dark' ? 'text-white/80' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
             {(() => {
               // Shared location header — always at very top
               const locationHeader = (
@@ -2461,9 +2459,6 @@ function MapMarker({
                       {lat.toFixed(4)}, {lng.toFixed(4)}
                     </span>
                   </div>
-                  <span className={`text-[10px] ${themeConfig.panel.textFaint} mt-0.5`}>
-                    {location.newsItemCount} {location.newsItemCount === 1 ? 'item' : 'items'}
-                  </span>
                 </div>
               )
 

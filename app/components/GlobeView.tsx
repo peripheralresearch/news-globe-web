@@ -688,11 +688,15 @@ export default function Home() {
     if (!map.current) return
 
     const newStyle = mapStyle === 'street' ? 'satellite' : 'street'
+    const nextTheme: Theme = newStyle === 'satellite' ? 'light' : theme
     const styleUrl = newStyle === 'street'
       ? 'mapbox://styles/mapbox/light-v11'
       : 'mapbox://styles/mapbox/satellite-streets-v12'
 
     setMapStyle(newStyle)
+    if (nextTheme !== theme) {
+      setTheme(nextTheme)
+    }
 
     // Store current sources and layers data before style change
     const eventLocationsData = eventLocationsRef.current
@@ -704,8 +708,8 @@ export default function Home() {
     // Re-add custom layers and data after style loads
     map.current.once('style.load', () => {
       if (!map.current) return
-      const dotColor = theme === 'light' ? '#0D0D0D' : '#FFFFFF'
-      const innerGlowColor = theme === 'light' ? '#FFFFFF' : dotColor
+      const dotColor = nextTheme === 'light' ? '#0D0D0D' : '#FFFFFF'
+      const innerGlowColor = nextTheme === 'light' ? '#FFFFFF' : dotColor
 
       // Restore globe projection and atmosphere
       map.current.setProjection('globe')
@@ -823,8 +827,8 @@ export default function Home() {
             'circle-radius': 3.2,
             'circle-color': '#FAD44D',
             'circle-opacity': 0.95,
-            'circle-stroke-color': theme === 'light' ? '#FFFFFF' : 'rgba(0,0,0,0)',
-            'circle-stroke-width': theme === 'light' ? 0.8 : 0,
+            'circle-stroke-color': nextTheme === 'light' ? '#FFFFFF' : 'rgba(0,0,0,0)',
+            'circle-stroke-width': nextTheme === 'light' ? 0.8 : 0,
           },
         })
       }
@@ -922,7 +926,7 @@ export default function Home() {
 
       console.log('Map style changed to:', newStyle)
     })
-  }, [mapStyle])
+  }, [mapStyle, theme])
 
   // Load globe data
   const fetchGlobePage = useCallback(async (limit: number) => {

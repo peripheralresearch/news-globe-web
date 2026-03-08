@@ -56,20 +56,32 @@ interface LocationData {
   }>;
 }
 
+function truncateWithEllipsis(text: string | null | undefined, maxLength: number): string | null {
+  if (!text) return null;
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 3)}...`;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = supabaseServer();
     const searchParams = request.nextUrl.searchParams;
 
     const limitParam = searchParams.get('limit');
-    const maxLocations = limitParam ? Math.max(1, Math.min(parseInt(limitParam, 10), 50)) : 30;
+    const maxLocations = limitParam ? Math.max(1, Math.min(parseInt(limitParam, 10), 200)) : 30;
 
-    console.log(`Globe API - Fetching top ${maxLocations} locations`);
+    const pplParam = searchParams.get('posts_per_location');
+    const postsPerLocation = pplParam ? Math.max(1, Math.min(parseInt(pplParam, 10), 20)) : 20;
+
+    const hoursParam = searchParams.get('hours');
+    const hoursAgo = hoursParam ? Math.max(1, Math.min(parseInt(hoursParam, 10), 8760)) : 24;
+
+    console.log(`Globe API - Fetching top ${maxLocations} locations, ${postsPerLocation} posts each, ${hoursAgo}h window`);
 
     const { data: globeData, error: rpcError } = await supabase.rpc('get_globe_data', {
-      hours_ago: 168,
+      hours_ago: hoursAgo,
       max_locations: maxLocations,
-      posts_per_location: 20,
+      posts_per_location: postsPerLocation,
     });
 
     if (rpcError) {
@@ -126,7 +138,7 @@ export async function GET(request: NextRequest) {
         return {
           id: post.post_internal_id,
           post_id: post.post_id,
-          title: post.post_text ? post.post_text.substring(0, 100) : null,
+          title: truncateWithEllipsis(post.post_text, 100),
           summary: post.post_text,
           created: post.post_date,
           source_name: post.channel_name || 'Unknown source',

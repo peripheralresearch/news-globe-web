@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import type mapboxgl from 'mapbox-gl'
 import { createPortal } from 'react-dom'
 import type { FeatureCollection, Feature, Point, LineString } from 'geojson'
+import Navigation from '@/app/components/landing/Navigation'
 
 // Start loading mapbox-gl immediately at module level (960KB) — don't wait for useEffect
 const mapboxglPromise = typeof window !== 'undefined'
@@ -224,7 +225,7 @@ interface GlobeData {
 const NEWS_ITEM_SUMMARY_LIMIT = 220
 const INITIAL_GLOBE_LIMIT = 35
 const FULL_GLOBE_LIMIT = 150
-const DEFAULT_GLOBE_HOURS = 168 // 7 days; "all time" queries time out in Supabase/Vercel
+const DEFAULT_GLOBE_HOURS = 24 // Latest 24 hours
 
 const IDLE_TIMEOUT = 10000 // 10 seconds before rotation starts
 const ROTATION_SPEED = 0.015 // degrees per frame (slow rotation)
@@ -323,36 +324,17 @@ function formatDate(dateString: string): string {
     if (isNaN(date.getTime())) {
       return 'Unknown date'
     }
-    
+
     const today = new Date()
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    
-    // Check if date is today
-    if (date.toDateString() === today.toDateString()) {
-      return date.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
-        minute: '2-digit',
-        hour12: true 
-      })
-    }
-    
-    // Check if date is yesterday
-    if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday'
-    }
-    
-    // Check if date is within last 7 days
-    const daysAgo = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-    if (daysAgo < 7) {
-      return `${daysAgo} days ago`
-    }
-    
-    // Otherwise show month and day
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
+    const year = date.getFullYear() !== today.getFullYear() ? 'numeric' as const : undefined
+
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
-      year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+      year,
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
     })
   } catch {
     return 'Unknown date'
@@ -506,6 +488,8 @@ export default function Home() {
   const [clickedLocation, setClickedLocation] = useState<LocationAggregate | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [mapError, setMapError] = useState<string | null>(null)
+  const postsCacheRef = useRef<Map<string, LocationAggregate['newsItems']>>(new Map())
+  const [postsLoadingLocation, setPostsLoadingLocation] = useState<string | null>(null)
   const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street')
   const [theme, setTheme] = useState<Theme>('dark')
 
@@ -943,7 +927,7 @@ export default function Home() {
   // Load globe data
   const fetchGlobePage = useCallback(async (limit: number) => {
     try {
-      const response = await fetch(`/api/sentinel/globe?limit=${limit}&hours=${DEFAULT_GLOBE_HOURS}`)
+      const response = await fetch(`/api/sentinel/globe?limit=${limit}&hours=${DEFAULT_GLOBE_HOURS}&posts_per_location=1`)
       if (!response.ok) {
         console.error(`Globe API (limit=${limit}) responded with ${response.status}`)
         return null
@@ -1021,6 +1005,49 @@ export default function Home() {
     } catch (error) {
       console.error('Globe API fetch error:', error)
       return null
+    }
+  }, [])
+
+  const fetchLocationPosts = useCallback(async (locationName: string): Promise<LocationAggregate['newsItems'] | null> => {
+    // Return cached posts if available
+    const cached = postsCacheRef.current.get(locationName)
+    if (cached) return cached
+
+    try {
+      setPostsLoadingLocation(locationName)
+      const response = await fetch(`/api/sentinel/globe/posts?location=${encodeURIComponent(locationName)}`)
+      if (!response.ok) return null
+
+      const result = await response.json()
+      if (result.status !== 'success' || !result.data?.posts) return null
+
+      const posts: LocationAggregate['newsItems'] = result.data.posts.map((s: any) => ({
+        id: s.id,
+        title: s.title,
+        summary: s.summary,
+        created: s.created,
+        sourceName: s.source_name || null,
+        sourceUrl: s.source_url || null,
+        hasPhoto: s.has_photo || null,
+        hasVideo: s.has_video || null,
+        mediaUrl: s.media_url || null,
+      })).sort((a: LocationAggregate['newsItems'][number], b: LocationAggregate['newsItems'][number]) => {
+        const aTelegram = a.sourceUrl?.includes('t.me/') ? 1 : 0
+        const bTelegram = b.sourceUrl?.includes('t.me/') ? 1 : 0
+        if (aTelegram !== bTelegram) return bTelegram - aTelegram
+        const aHasMedia = a.mediaUrl || a.hasPhoto || a.hasVideo ? 1 : 0
+        const bHasMedia = b.mediaUrl || b.hasPhoto || b.hasVideo ? 1 : 0
+        if (aHasMedia !== bHasMedia) return bHasMedia - aHasMedia
+        return new Date(b.created).getTime() - new Date(a.created).getTime()
+      })
+
+      postsCacheRef.current.set(locationName, posts)
+      return posts
+    } catch (error) {
+      console.error('Failed to fetch location posts:', error)
+      return null
+    } finally {
+      setPostsLoadingLocation(prev => prev === locationName ? null : prev)
     }
   }, [])
 
@@ -1202,6 +1229,22 @@ export default function Home() {
           duration: 1500,
         })
 
+        // Lazy-load full posts if only 1 post was loaded initially
+        if (location.newsItems.length <= 1) {
+          fetchLocationPosts(location.name).then(posts => {
+            if (!posts || posts.length === 0) return
+            // Mutate the location in globeData so MapMarker re-renders with full posts
+            const currentData = globeDataRef.current
+            if (!currentData) return
+            const updatedLocations = currentData.locations.map(loc =>
+              loc.name === location.name ? { ...loc, newsItems: posts } : loc
+            )
+            const updatedData = { ...currentData, locations: updatedLocations }
+            setGlobeData(updatedData)
+            globeDataRef.current = updatedData
+          })
+        }
+
         // Trigger ripple ring animation only from globe perspective (zoom < 3)
         const currentZoom = map.current.getZoom()
         if (currentZoom < 3) {
@@ -1343,11 +1386,16 @@ export default function Home() {
 
           const dotColor = initialConfig.dotColor
 
-          // Guard against duplicate source additions (React Strict Mode double-mount)
-          if (map.current.getSource('equator-ring')) return
+          // Safe helpers to avoid "source/layer already exists" on React Strict Mode double-mount
+          const safeAddSource = (id: string, source: mapboxgl.AnySourceData) => {
+            if (!map.current!.getSource(id)) map.current!.addSource(id, source)
+          }
+          const safeAddLayer = (layer: mapboxgl.AnyLayer) => {
+            if (!map.current!.getLayer(layer.id)) map.current!.addLayer(layer)
+          }
 
           // Add ripple ring source (starts hidden, animates on dot click)
-          map.current.addSource('equator-ring', {
+          safeAddSource('equator-ring', {
             type: 'geojson',
             data: {
               type: 'Feature',
@@ -1360,7 +1408,7 @@ export default function Home() {
           })
 
           // Outer glow layer for the ring
-          map.current.addLayer({
+          safeAddLayer({
             id: 'equator-ring-glow',
             type: 'line',
             source: 'equator-ring',
@@ -1373,7 +1421,7 @@ export default function Home() {
           })
 
           // Main ring line
-          map.current.addLayer({
+          safeAddLayer({
             id: 'equator-ring-line',
             type: 'line',
             source: 'equator-ring',
@@ -1385,17 +1433,17 @@ export default function Home() {
           })
 
           // Add event-locations source
-          map.current.addSource('event-locations', {
+          safeAddSource('event-locations', {
             type: 'geojson',
             data: { type: 'FeatureCollection', features: [] },
           })
-          map.current.addSource('media-posts', {
+          safeAddSource('media-posts', {
             type: 'geojson',
             data: { type: 'FeatureCollection', features: [] },
           })
 
           // Base GPU-rendered dots layer for smooth globe tracking
-          map.current.addLayer({
+          safeAddLayer({
             id: 'event-locations-dots',
             type: 'circle',
             source: 'event-locations',
@@ -1470,7 +1518,7 @@ export default function Home() {
           //     'circle-blur': 0.5,
           //   },
           // })
-          map.current.addLayer({
+          safeAddLayer({
             id: 'media-posts-dots',
             type: 'circle',
             source: 'media-posts',
@@ -1594,7 +1642,7 @@ export default function Home() {
           pulseFrameRef.current = requestAnimationFrame(animatePulse)
 
           // Add country border sources first
-          map.current.addSource('country-border-glow', {
+          safeAddSource('country-border-glow', {
             type: 'geojson',
             data: {
               type: 'FeatureCollection',
@@ -1602,7 +1650,7 @@ export default function Home() {
             },
           })
 
-          map.current.addSource('country-border-line', {
+          safeAddSource('country-border-line', {
             type: 'geojson',
             data: {
               type: 'FeatureCollection',
@@ -1611,7 +1659,7 @@ export default function Home() {
           })
 
           // Then add country border highlight layers
-          map.current.addLayer({
+          safeAddLayer({
             id: 'country-border-glow',
             type: 'line',
             source: 'country-border-glow',
@@ -1623,7 +1671,7 @@ export default function Home() {
             },
           })
 
-          map.current.addLayer({
+          safeAddLayer({
             id: 'country-border-line',
             type: 'line',
             source: 'country-border-line',
@@ -2047,48 +2095,14 @@ export default function Home() {
         style={{ minHeight: '100vh', minWidth: '100vw' }}
       />
 
-      {/* Top Right Controls */}
-      {globeData && !selectedLocation && (
-        <div className="absolute top-4 right-4 z-10 flex gap-2">
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className={`p-2.5 backdrop-blur border rounded-lg transition-all shadow-sm ${themeConfig.buttonBg} ${themeConfig.buttonBorder} ${themeConfig.buttonText} ${themeConfig.buttonHover}`}
-            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          >
-            {theme === 'dark' ? (
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            ) : (
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-            )}
-          </button>
-
-          {/* Map Style Toggle */}
-          <button
-            onClick={toggleMapStyle}
-            className={`p-2.5 backdrop-blur border rounded-lg transition-all shadow-sm ${themeConfig.buttonBg} ${themeConfig.buttonBorder} ${themeConfig.buttonText} ${themeConfig.buttonHover}`}
-            title={`Switch to ${mapStyle === 'street' ? 'satellite' : 'street'} view`}
-          >
-            {mapStyle === 'street' ? (
-              <img
-                src="/icons/satellite.png"
-                alt=""
-                className="h-5 w-5"
-                style={{ filter: theme === 'dark' ? 'invert(1)' : 'none' }}
-                aria-hidden="true"
-              />
-            ) : (
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-            )}
-          </button>
-        </div>
-      )}
+      {/* Navigation Bar */}
+      <Navigation
+        variant="transparent"
+        theme={theme}
+        mapStyle={mapStyle}
+        onToggleTheme={toggleTheme}
+        onToggleMapStyle={toggleMapStyle}
+      />
 
       {/* Render marker content via portals — React handles updates without recreating mapbox markers */}
       {globeData && markerKeys.map(name => {
@@ -2102,6 +2116,7 @@ export default function Home() {
             animationDelay={markerDelaysRef.current.get(name) ?? 0}
             isClicked={clickedLocation?.name === name}
             isIdlePreview={idlePreviewLocation?.name === name}
+            postsLoading={postsLoadingLocation === name}
             theme={theme}
             onFocusNewsItem={() => {
               if (!map.current) return
@@ -2128,6 +2143,7 @@ function MapMarker({
   animationDelay,
   isClicked = false,
   isIdlePreview = false,
+  postsLoading = false,
   theme = 'dark',
   onFocusNewsItem,
 }: {
@@ -2135,6 +2151,7 @@ function MapMarker({
   animationDelay: number;
   isClicked?: boolean;
   isIdlePreview?: boolean;
+  postsLoading?: boolean;
   theme?: Theme;
   onFocusNewsItem?: () => void;
 }) {
@@ -2253,17 +2270,36 @@ function MapMarker({
   const currentSlide = mediaPreviews.length > 0 ? mediaPreviews[slideshowIndex % mediaPreviews.length] : null
 
   // Auto-cycle slideshow when panel is selected and we have multiple media items
-  useEffect(() => {
-    if (isClicked && mediaPreviews.length > 1) {
+  const restartSlideshowTimer = useCallback(() => {
+    if (slideshowTimerRef.current) clearInterval(slideshowTimerRef.current)
+    if (mediaPreviews.length > 1) {
       slideshowTimerRef.current = setInterval(() => {
         setSlideshowIndex(prev => prev + 1)
       }, 5000)
+    }
+  }, [mediaPreviews.length])
+
+  useEffect(() => {
+    if (isClicked && mediaPreviews.length > 1) {
+      restartSlideshowTimer()
       return () => { if (slideshowTimerRef.current) clearInterval(slideshowTimerRef.current) }
     } else {
       setSlideshowIndex(0)
       if (slideshowTimerRef.current) clearInterval(slideshowTimerRef.current)
     }
-  }, [isClicked, mediaPreviews.length])
+  }, [isClicked, mediaPreviews.length, restartSlideshowTimer])
+
+  const handleSlidePrev = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSlideshowIndex(prev => (prev - 1 + mediaPreviews.length) % mediaPreviews.length)
+    restartSlideshowTimer()
+  }
+
+  const handleSlideNext = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSlideshowIndex(prev => (prev + 1) % mediaPreviews.length)
+    restartSlideshowTimer()
+  }
 
   // Show panel if hovered OR clicked OR idle-previewing
   const showPanel = isHovered || isClicked || isIdlePreview
@@ -2396,10 +2432,21 @@ function MapMarker({
           <div
             className={`${themeConfig.panel.bg} backdrop-blur-3xl backdrop-saturate-0 border ${themeConfig.panel.border} rounded-xl ${themeConfig.panel.text} shadow-2xl transition-all ${
               location.newsItemCount > 1 ? `cursor-pointer ${themeConfig.panel.hoverBorder} ${themeConfig.panel.hoverBg}` : ''
-            }`}
+            } relative`}
             onClick={handlePanelClick}
             style={panelSurfaceStyle}
           >
+            {isExpanded && (
+              <button
+                onClick={handleCloseExpanded}
+                className={`absolute top-2 right-2 z-20 p-1 ${theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'} rounded transition-colors`}
+                aria-label="Close panel"
+              >
+                <svg className={`w-4 h-4 ${theme === 'dark' ? 'text-white/80' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
             {(() => {
               // Shared location header — always at very top
               const locationHeader = (
@@ -2432,7 +2479,28 @@ function MapMarker({
                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                     />
                   ))}
-                  {mediaPreviews.length > 1 && (
+                  {mediaPreviews.length > 1 && (<>
+                    {/* Left arrow */}
+                    <button
+                      className="absolute left-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 transition-colors"
+                      onClick={handleSlidePrev}
+                      aria-label="Previous image"
+                    >
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    {/* Right arrow */}
+                    <button
+                      className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 transition-colors"
+                      onClick={handleSlideNext}
+                      aria-label="Next image"
+                    >
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    {/* Dot indicators */}
                     <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
                       {mediaPreviews.map((_, i) => (
                         <div
@@ -2447,7 +2515,7 @@ function MapMarker({
                         />
                       ))}
                     </div>
-                  )}
+                  </>)}
                 </div>
               )
 
@@ -2576,8 +2644,8 @@ function MapMarker({
                   </div>
                 )}
                 <div className="p-3">
-                  {/* Back + close buttons */}
-                  <div className={`flex items-center justify-between mb-2 pb-2 border-b ${themeConfig.panel.divider}`}>
+                  {/* Back button */}
+                  <div className={`flex items-center mb-2 pb-2 border-b ${themeConfig.panel.divider}`}>
                     <button
                       onClick={(e) => { e.stopPropagation(); setPanelView('featured'); setDetailItem(null) }}
                       className={`flex items-center gap-1 text-[10px] ${themeConfig.panel.textFaint} ${theme === 'dark' ? 'hover:text-white' : 'hover:text-gray-800'} transition-colors`}
@@ -2587,14 +2655,6 @@ function MapMarker({
                       </svg>
                       Back
                     </button>
-                    <button
-                      onClick={handleCloseExpanded}
-                      className={`p-1 ${theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'} rounded transition-colors`}
-                    >
-                      <svg className={`w-4 h-4 ${theme === 'dark' ? 'text-white/80' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
                   </div>
                   {/* Scrollable content area */}
                   <div className="max-h-[360px] overflow-y-auto pr-1" style={{
@@ -2602,7 +2662,7 @@ function MapMarker({
                     scrollbarColor: `${themeConfig.panel.scrollbar} transparent`,
                   }}>
                   {/* Title */}
-                  <h3 className={`text-sm font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} leading-snug`}>
+                  <h3 className={`text-sm font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} leading-snug ${isTelegramSource(detailItem.sourceUrl) ? 'line-clamp-2' : ''}`}>
                     {detailItem.title || 'Untitled'}
                   </h3>
                   {/* Source + time */}
@@ -2687,24 +2747,23 @@ function MapMarker({
                   </div>
                 )}
                 <div className="p-3 pt-1">
-                {/* Close button + divider */}
-                <div className={`flex items-center justify-end mb-2 pb-2 border-b ${themeConfig.panel.divider}`}>
-                  <button
-                    onClick={handleCloseExpanded}
-                    className={`p-1 ${theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'} rounded transition-colors`}
-                    aria-label="Close expanded view"
-                  >
-                    <svg className={`w-4 h-4 ${theme === 'dark' ? 'text-white/80' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
+                {/* Divider */}
+                <div className={`mb-2 pb-2 border-b ${themeConfig.panel.divider}`} />
 
                 {/* News items list with scroll */}
                 <div className="space-y-3 max-h-96 overflow-y-auto pr-2" style={{
                   scrollbarWidth: 'thin',
                   scrollbarColor: `${themeConfig.panel.scrollbar} transparent`
                 }}>
+                  {postsLoading && location.newsItems.length <= 1 && (
+                    <div className="flex items-center justify-center py-6">
+                      <div className="flex gap-1">
+                        <div className={`w-1.5 h-1.5 rounded-full ${theme === 'dark' ? 'bg-white/60' : 'bg-gray-400'} animate-bounce`} style={{ animationDelay: '0ms' }} />
+                        <div className={`w-1.5 h-1.5 rounded-full ${theme === 'dark' ? 'bg-white/60' : 'bg-gray-400'} animate-bounce`} style={{ animationDelay: '150ms' }} />
+                        <div className={`w-1.5 h-1.5 rounded-full ${theme === 'dark' ? 'bg-white/60' : 'bg-gray-400'} animate-bounce`} style={{ animationDelay: '300ms' }} />
+                      </div>
+                    </div>
+                  )}
                   {location.newsItems.map((newsItem, index) => {
                     const newsItemIsTelegram = isTelegramSource(newsItem.sourceUrl)
                     const newsItemTelegramChannelUrl = telegramChannelUrl(newsItem.sourceUrl)

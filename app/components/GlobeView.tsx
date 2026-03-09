@@ -225,7 +225,7 @@ interface GlobeData {
 const NEWS_ITEM_SUMMARY_LIMIT = 220
 const INITIAL_GLOBE_LIMIT = 35
 const FULL_GLOBE_LIMIT = 150
-const DEFAULT_GLOBE_HOURS = 24 // Latest 24 hours
+const DEFAULT_GLOBE_HOURS = 96 // Latest 4 days
 
 const IDLE_TIMEOUT = 10000 // 10 seconds before rotation starts
 const ROTATION_SPEED = 0.015 // degrees per frame (slow rotation)
@@ -2122,6 +2122,10 @@ export default function Home() {
             isIdlePreview={idlePreviewLocation?.name === name}
             postsLoading={postsLoadingLocation === name}
             theme={theme}
+            onClosePanel={() => {
+              setClickedLocation(null)
+              setSelectedLocation(null)
+            }}
             onFocusNewsItem={() => {
               if (!map.current) return
               const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
@@ -2149,6 +2153,7 @@ function MapMarker({
   isIdlePreview = false,
   postsLoading = false,
   theme = 'dark',
+  onClosePanel,
   onFocusNewsItem,
 }: {
   location: LocationAggregate;
@@ -2157,6 +2162,7 @@ function MapMarker({
   isIdlePreview?: boolean;
   postsLoading?: boolean;
   theme?: Theme;
+  onClosePanel?: () => void;
   onFocusNewsItem?: () => void;
 }) {
   const themeConfig = THEME_CONFIG[theme]
@@ -2222,6 +2228,7 @@ function MapMarker({
 
   const handleCloseExpanded = (e: React.MouseEvent) => {
     e.stopPropagation()
+    onClosePanel?.()
     setPanelView('featured')
     setDetailItem(null)
     setEntityData(null)
@@ -2242,6 +2249,27 @@ function MapMarker({
     e.stopPropagation()
     setDetailItem(item)
     setPanelView('detail')
+
+    // Replace truncated globe payload summary with full article content on demand.
+    if (item.id) {
+      fetch(`/api/sentinel/news-item/content?id=${encodeURIComponent(item.id)}`)
+        .then(res => res.json())
+        .then(json => {
+          if (json.status !== 'success' || !json.data) return
+          const fullContent = json.data.content || item.summary
+          const fullTitle = json.data.title || item.title
+          setDetailItem(prev => {
+            if (!prev || prev.id !== item.id) return prev
+            return {
+              ...prev,
+              title: fullTitle,
+              summary: fullContent,
+            }
+          })
+        })
+        .catch(() => {})
+    }
+
     // Fetch entities for this news item
     if (item.id) {
       setEntityLoading(true)

@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     const postsPerLocation = pplParam ? Math.max(1, Math.min(parseInt(pplParam, 10), 20)) : 20;
 
     const hoursParam = searchParams.get('hours');
-    const hoursAgo = hoursParam ? Math.max(1, Math.min(parseInt(hoursParam, 10), 8760)) : 24;
+    const hoursAgo = hoursParam ? Math.max(1, Math.min(parseInt(hoursParam, 10), 8760)) : 96;
 
     console.log(`Globe API - Fetching top ${maxLocations} locations, ${postsPerLocation} posts each, ${hoursAgo}h window`);
 

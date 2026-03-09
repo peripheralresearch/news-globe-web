@@ -74,7 +74,7 @@ export default function RootPage() {
   return (
     <>
       {/* Prefetch globe API data so it's already in-flight before JS hydrates */}
-      <link rel="preload" href="/api/sentinel/globe?limit=35&hours=24&posts_per_location=1" as="fetch" crossOrigin="anonymous" />
+      <link rel="preload" href="/api/sentinel/globe?limit=35&hours=96&posts_per_location=1" as="fetch" crossOrigin="anonymous" />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

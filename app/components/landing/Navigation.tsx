@@ -31,9 +31,6 @@ export default function Navigation({
   }, [])
 
   const navLinks = [
-    { label: 'Home', href: '/home' },
-    { label: 'Intelligence', href: '/stories' },
-    { label: 'Signals', href: '/signals' },
     { label: 'About', href: '/about' },
     { label: 'Contact', href: '/contact' },
   ]
@@ -144,9 +141,9 @@ export default function Navigation({
           {/* Center: Logo */}
           <Link
             href="/"
-            className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center"
+            className="group/logo absolute left-1/2 -translate-x-1/2 flex flex-col items-center transition-transform duration-200 hover:scale-[1.03] active:scale-[0.99]"
           >
-            <span className={logoTextClasses}>
+            <span className={`${logoTextClasses} transition-shadow duration-200 group-hover/logo:shadow-[0_0_0_1px_rgba(250,212,77,0.35)]`}>
               The Peripheral
             </span>
             {!isTransparent && (

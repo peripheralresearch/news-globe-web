@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const accessKey = request.headers.get('x-access-key')
@@ -35,7 +35,7 @@ export async function GET(
       )
     }
 
-    const { id } = params
+    const { id } = await context.params
 
     // Basic UUID format validation
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

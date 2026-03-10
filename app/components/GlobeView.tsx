@@ -486,14 +486,65 @@ export default function Home() {
   const globeDataPromiseRef = useRef<Promise<GlobeData | null> | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<LocationAggregate | null>(null)
   const [clickedLocation, setClickedLocation] = useState<LocationAggregate | null>(null)
+  const isPanelActive = Boolean(clickedLocation)
   const [isLoading, setIsLoading] = useState(true)
   const [mapError, setMapError] = useState<string | null>(null)
   const postsCacheRef = useRef<Map<string, LocationAggregate['newsItems']>>(new Map())
   const [postsLoadingLocation, setPostsLoadingLocation] = useState<string | null>(null)
   const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street')
   const [theme, setTheme] = useState<Theme>('dark')
+  const [perfDebugEnabled, setPerfDebugEnabled] = useState(false)
+  const [perfStats, setPerfStats] = useState({
+    fps: 0,
+    heapMb: 0,
+    inFlight: 0,
+    lastGlobeMs: 0,
+    lastPostsMs: 0,
+  })
+  const inFlightRequestsRef = useRef(0)
+  const lastGlobeMsRef = useRef(0)
+  const lastPostsMsRef = useRef(0)
 
   const brandingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    setPerfDebugEnabled(params.get('debugPerf') === '1')
+  }, [])
+
+  useEffect(() => {
+    if (!perfDebugEnabled) return
+
+    let frameCount = 0
+    let rafId = 0
+    let lastTick = performance.now()
+
+    const loop = (now: number) => {
+      frameCount += 1
+      if (now - lastTick >= 1000) {
+        const memory = (performance as any).memory
+        const heapMb = memory?.usedJSHeapSize
+          ? Math.round(memory.usedJSHeapSize / 1024 / 1024)
+          : 0
+
+        setPerfStats({
+          fps: frameCount,
+          heapMb,
+          inFlight: inFlightRequestsRef.current,
+          lastGlobeMs: lastGlobeMsRef.current,
+          lastPostsMs: lastPostsMsRef.current,
+        })
+
+        frameCount = 0
+        lastTick = now
+      }
+      rafId = requestAnimationFrame(loop)
+    }
+
+    rafId = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(rafId)
+  }, [perfDebugEnabled])
 
   // Helper function to determine if location is a country (not a city)
   const isCountryLocation = useCallback((location: LocationAggregate) => {
@@ -930,6 +981,8 @@ export default function Home() {
 
   // Load globe data
   const fetchGlobePage = useCallback(async (limit: number) => {
+    const startedAt = performance.now()
+    inFlightRequestsRef.current += 1
     try {
       const response = await fetch(`/api/sentinel/globe?limit=${limit}&hours=${DEFAULT_GLOBE_HOURS}&posts_per_location=1`)
       if (!response.ok) {
@@ -1009,6 +1062,9 @@ export default function Home() {
     } catch (error) {
       console.error('Globe API fetch error:', error)
       return null
+    } finally {
+      inFlightRequestsRef.current = Math.max(0, inFlightRequestsRef.current - 1)
+      lastGlobeMsRef.current = Math.round(performance.now() - startedAt)
     }
   }, [])
 
@@ -1017,6 +1073,8 @@ export default function Home() {
     const cached = postsCacheRef.current.get(locationName)
     if (cached) return cached
 
+    const startedAt = performance.now()
+    inFlightRequestsRef.current += 1
     try {
       setPostsLoadingLocation(locationName)
       const response = await fetch(`/api/sentinel/globe/posts?location=${encodeURIComponent(locationName)}`)
@@ -1051,6 +1109,8 @@ export default function Home() {
       console.error('Failed to fetch location posts:', error)
       return null
     } finally {
+      inFlightRequestsRef.current = Math.max(0, inFlightRequestsRef.current - 1)
+      lastPostsMsRef.current = Math.round(performance.now() - startedAt)
       setPostsLoadingLocation(prev => prev === locationName ? null : prev)
     }
   }, [])
@@ -1198,7 +1258,8 @@ export default function Home() {
         .addTo(map.current)
 
       // Click handler uses refs so it stays stable
-      el.addEventListener('click', () => {
+      el.addEventListener('click', (event) => {
+        event.stopPropagation()
         if (!map.current || !globeDataRef.current) return
 
         // Stop idle rotation
@@ -1846,8 +1907,8 @@ export default function Home() {
   const animateRotation = useCallback(() => {
     if (!map.current || !isRotatingRef.current) return
 
-    // Don't rotate when viewing a specific location/story
-    if (selectedLocation) {
+    // Don't rotate while user is focused on a location/panel.
+    if (selectedLocation || isPanelActive) {
       stopRotation()
       return
     }
@@ -1858,10 +1919,13 @@ export default function Home() {
     map.current.setCenter([newLng, center.lat])
 
     rotationFrameRef.current = requestAnimationFrame(animateRotation)
-  }, [selectedLocation, stopRotation])
+  }, [selectedLocation, isPanelActive, stopRotation])
 
   // Check for idle state and start rotation
   const checkIdleState = useCallback(() => {
+    // Suspend all idle behaviors while a panel is actively open.
+    if (isPanelActive) return
+
     const timeSinceInteraction = Date.now() - lastInteractionRef.current
 
     if (timeSinceInteraction >= IDLE_TIMEOUT && !isRotatingRef.current && map.current) {
@@ -1870,7 +1934,7 @@ export default function Home() {
       // Also restart idle preview when rotation resumes
       startIdlePreviewFnRef.current?.()
     }
-  }, [animateRotation])
+  }, [animateRotation, isPanelActive])
 
   // Set up idle check interval
   useEffect(() => {
@@ -1886,8 +1950,9 @@ export default function Home() {
       zoomOutTimeoutRef.current = null
     }
 
-    // If a location is selected, start the zoom-out timer
-    if (selectedLocation && map.current) {
+    // If a location is selected and no panel is open, start the zoom-out timer.
+    // Reading an open panel should never auto-zoom the user out.
+    if (selectedLocation && !isPanelActive && map.current) {
       console.log('⏱️ Starting 1-minute auto zoom-out timer')
       zoomOutTimeoutRef.current = setTimeout(() => {
         console.log('⏰ 1 minute elapsed - zooming back out to globe view')
@@ -1915,7 +1980,7 @@ export default function Home() {
         zoomOutTimeoutRef.current = null
       }
     }
-  }, [selectedLocation])
+  }, [selectedLocation, isPanelActive])
 
   // Update country border highlight when selection changes
   useEffect(() => {
@@ -2141,6 +2206,18 @@ export default function Home() {
           el
         )
       })}
+      {perfDebugEnabled && (
+        <div className="fixed right-3 bottom-3 z-[5000] rounded-md border border-white/20 bg-black/70 px-3 py-2 font-mono text-[11px] text-white">
+          <div>perf debug</div>
+          <div>fps: {perfStats.fps}</div>
+          <div>markers: {markerKeys.length}</div>
+          <div>locations: {globeData?.locations.length ?? 0}</div>
+          <div>inflight: {perfStats.inFlight}</div>
+          <div>globe ms: {perfStats.lastGlobeMs}</div>
+          <div>posts ms: {perfStats.lastPostsMs}</div>
+          <div>heap mb: {perfStats.heapMb || 'n/a'}</div>
+        </div>
+      )}
     </div>
     </>
   )

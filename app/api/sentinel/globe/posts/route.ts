@@ -59,6 +59,26 @@ export async function GET(request: NextRequest) {
       return true;
     });
 
+    // mv_globe_posts can be stale; prefer canonical media_url from news_item.
+    const postIds = uniquePosts
+      .map(post => post.post_internal_id)
+      .filter((id): id is string => Boolean(id));
+    const mediaByPostId = new Map<string, string | null>();
+    if (postIds.length > 0) {
+      const { data: mediaRows, error: mediaError } = await supabase
+        .from('news_item')
+        .select('id, media_url')
+        .in('id', postIds);
+
+      if (mediaError) {
+        console.warn('Globe posts API - failed to reconcile media urls from news_item:', mediaError.message);
+      } else {
+        for (const row of mediaRows || []) {
+          mediaByPostId.set(row.id, row.media_url ?? null);
+        }
+      }
+    }
+
     const formattedPosts = uniquePosts.map(post => {
       const channelUsername = post.channel_username?.replace(/^@/, '');
       const sourceUrl = channelUsername && post.post_id
@@ -75,7 +95,9 @@ export async function GET(request: NextRequest) {
         source_url: sourceUrl,
         has_photo: post.has_photo,
         has_video: post.has_video,
-        media_url: post.media_url,
+        media_url: mediaByPostId.has(post.post_internal_id)
+          ? mediaByPostId.get(post.post_internal_id) ?? null
+          : post.media_url,
       };
     });
 

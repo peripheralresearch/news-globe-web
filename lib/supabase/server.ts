@@ -1,14 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 
 export function supabaseServer() {
-  const url = process.env.SUPABASE_URL
-  const key = process.env.SUPABASE_ANON_KEY
+  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!url || !key) {
-    throw new Error('Supabase server env vars missing')
+    throw new Error(
+      'Supabase server env vars missing. Expected SUPABASE_URL + SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY).'
+    )
   }
 
   return createClient(url, key)
 }
-
 

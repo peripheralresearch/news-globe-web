@@ -56,6 +56,54 @@ interface LocationData {
   }>;
 }
 
+const BROAD_LOCATION_SUBTYPES = new Set([
+  'CONTINENT',
+  'REGION',
+  'SUBREGION',
+  'MACRO_REGION',
+  'OCEAN',
+  'SEA',
+  'WATER_BODY',
+]);
+
+const BROAD_LOCATION_NAME_PATTERNS: RegExp[] = [
+  /\bafrica\b/i,
+  /\bantarctica\b/i,
+  /\basia\b/i,
+  /\beurope\b/i,
+  /\bnorth america\b/i,
+  /\bsouth america\b/i,
+  /\boceania\b/i,
+  /\bmiddle east\b/i,
+  /\bpersian gulf\b/i,
+  /\b(arabian|red|black|baltic|mediterranean)\s+sea\b/i,
+  /\bocean\b/i,
+  /\bgulf\b/i,
+];
+
+function shouldExcludeBroadLocation(loc: LocationAggregate): boolean {
+  const subtype = (loc.location_subtype || '').toUpperCase().trim();
+  const type = (loc.location_type || '').toUpperCase().trim();
+  const name = (loc.location_name || '').trim();
+  const normalizedName = name.toLowerCase();
+
+  // Manual suppression for malformed composite location entities.
+  if (normalizedName === 'united states-israel') {
+    return true;
+  }
+
+  if (BROAD_LOCATION_SUBTYPES.has(subtype) || BROAD_LOCATION_SUBTYPES.has(type)) {
+    return true;
+  }
+
+  // Exclude very broad zoom levels (continents/macro-regions), but allow countries back in.
+  if (typeof loc.default_zoom === 'number' && loc.default_zoom <= 4) {
+    return true;
+  }
+
+  return BROAD_LOCATION_NAME_PATTERNS.some((pattern) => pattern.test(name));
+}
+
 function truncateWithEllipsis(text: string | null | undefined, maxLength: number): string | null {
   if (!text) return null;
   if (text.length <= maxLength) return text;
@@ -69,6 +117,7 @@ export async function GET(request: NextRequest) {
 
     const limitParam = searchParams.get('limit');
     const maxLocations = limitParam ? Math.max(1, Math.min(parseInt(limitParam, 10), 200)) : 30;
+    const fetchLocations = Math.min(200, Math.max(maxLocations * 3, maxLocations));
 
     const pplParam = searchParams.get('posts_per_location');
     const postsPerLocation = pplParam ? Math.max(1, Math.min(parseInt(pplParam, 10), 20)) : 20;
@@ -76,11 +125,11 @@ export async function GET(request: NextRequest) {
     const hoursParam = searchParams.get('hours');
     const hoursAgo = hoursParam ? Math.max(1, Math.min(parseInt(hoursParam, 10), 8760)) : 96;
 
-    console.log(`Globe API - Fetching top ${maxLocations} locations, ${postsPerLocation} posts each, ${hoursAgo}h window`);
+    console.log(`Globe API - Fetching top ${fetchLocations} candidate locations, ${postsPerLocation} posts each, ${hoursAgo}h window`);
 
     const { data: globeData, error: rpcError } = await supabase.rpc('get_globe_data', {
       hours_ago: hoursAgo,
-      max_locations: maxLocations,
+      max_locations: fetchLocations,
       posts_per_location: postsPerLocation,
     });
 
@@ -93,7 +142,8 @@ export async function GET(request: NextRequest) {
     }
 
     const result = globeData as GlobeDataResult | null;
-    const locationAggregates: LocationAggregate[] = result?.locations ?? [];
+    const locationAggregatesRaw: LocationAggregate[] = result?.locations ?? [];
+    const locationAggregates = locationAggregatesRaw.filter((loc) => !shouldExcludeBroadLocation(loc)).slice(0, maxLocations);
     const locationPosts: LocationPost[] = result?.posts ?? [];
 
     if (locationAggregates.length === 0) {
@@ -104,7 +154,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`Globe API - Found ${locationAggregates.length} locations`);
+    console.log(`Globe API - Found ${locationAggregates.length} locations after broad-geo filtering (from ${locationAggregatesRaw.length})`);
 
     // Group posts by location
     const locationPostsMap = new Map<number, LocationPost[]>();
@@ -113,6 +163,24 @@ export async function GET(request: NextRequest) {
         locationPostsMap.set(post.location_id, []);
       }
       locationPostsMap.get(post.location_id)!.push(post);
+    }
+
+    // mv_globe_posts can lag behind news_item updates; prefer canonical media_url from news_item.
+    const postIds = Array.from(new Set(locationPosts.map(post => post.post_internal_id).filter(Boolean)));
+    const mediaByPostId = new Map<string, string | null>();
+    if (postIds.length > 0) {
+      const { data: mediaRows, error: mediaError } = await supabase
+        .from('news_item')
+        .select('id, media_url')
+        .in('id', postIds);
+
+      if (mediaError) {
+        console.warn('Globe API - failed to reconcile media urls from news_item:', mediaError.message);
+      } else {
+        for (const row of mediaRows || []) {
+          mediaByPostId.set(row.id, row.media_url ?? null);
+        }
+      }
     }
 
     const formattedLocations: LocationData[] = locationAggregates.map(loc => {
@@ -145,7 +213,9 @@ export async function GET(request: NextRequest) {
           source_url: sourceUrl,
           has_photo: post.has_photo,
           has_video: post.has_video,
-          media_url: post.media_url,
+          media_url: mediaByPostId.has(post.post_internal_id)
+            ? mediaByPostId.get(post.post_internal_id) ?? null
+            : post.media_url,
         };
       });
 

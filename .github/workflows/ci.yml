@@ -2,9 +2,9 @@ name: WebApp CI
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, staging]
   push:
-    branches: [main, develop]
+    branches: [main, develop, staging]
   workflow_dispatch:
 
 concurrency:

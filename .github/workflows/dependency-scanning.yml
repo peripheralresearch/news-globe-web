@@ -3,9 +3,9 @@ name: NPM Security Audit
 
 on:
   push:
-    branches: [ main, develop, stripe ]
+    branches: [ main, develop, staging, stripe ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop, staging ]
   schedule:
     - cron: '0 3 * * 1' # Run weekly on Mondays at 3 AM UTC
   workflow_dispatch:

@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "typecheck": "tsc --noEmit",
     "check:merge-markers": "bash -lc \"if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- . ':(exclude)package-lock.json'; then echo 'Merge conflict markers detected'; exit 1; fi\"",
     "test": "jest",

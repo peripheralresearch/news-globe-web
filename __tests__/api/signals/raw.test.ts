@@ -30,11 +30,14 @@ import { GET } from '@/app/api/signals/[id]/raw/route'
 const VALID_ID = '00000000-0000-0000-0000-000000000001'
 const ACCESS_KEY = 'test-secret-key'
 
-function makeRequest(id: string, headers: Record<string, string> = {}): [NextRequest, { params: { id: string } }] {
+function makeRequest(
+  id: string,
+  headers: Record<string, string> = {}
+): [NextRequest, { params: Promise<{ id: string }> }] {
   const req = new NextRequest(`http://localhost:3000/api/signals/${id}/raw`, {
     headers: new Headers(headers),
   })
-  return [req, { params: { id } }]
+  return [req, { params: Promise.resolve({ id }) }]
 }
 
 describe('GET /api/signals/[id]/raw', () => {

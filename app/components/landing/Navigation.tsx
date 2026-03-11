@@ -31,6 +31,8 @@ export default function Navigation({
   }, [])
 
   const navLinks = [
+    { label: 'Globe', href: '/globe' },
+    { label: 'Media', href: '/globe-video' },
     { label: 'About', href: '/about' },
     { label: 'Contact', href: '/contact' },
   ]

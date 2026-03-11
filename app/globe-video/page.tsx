@@ -6,6 +6,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { createRoot } from 'react-dom/client'
 import { createPortal } from 'react-dom'
 import type { FeatureCollection, Feature, Point, LineString } from 'geojson'
+import Navigation from '@/app/components/landing/Navigation'
 
 
 // Theme configuration
@@ -1970,55 +1971,20 @@ export default function Home() {
   return (
     <>
     <div className={`relative w-full h-screen ${themeConfig.background} overflow-hidden transition-colors duration-500`}>
+      <Navigation
+        variant="transparent"
+        theme={theme}
+        mapStyle={mapStyle}
+        onToggleTheme={toggleTheme}
+        onToggleMapStyle={toggleMapStyle}
+      />
+
       {/* Map */}
       <div
         ref={mapContainer}
         className="absolute inset-0 w-full h-full"
         style={{ minHeight: '100vh', minWidth: '100vw' }}
       />
-
-      {/* Top Right Controls */}
-      {globeData && !isLoading && !selectedLocation && (
-        <div className="absolute top-4 right-4 z-10 flex gap-2">
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className={`p-2.5 backdrop-blur border rounded-lg transition-all shadow-sm ${themeConfig.buttonBg} ${themeConfig.buttonBorder} ${themeConfig.buttonText} ${themeConfig.buttonHover}`}
-            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          >
-            {theme === 'dark' ? (
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            ) : (
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-            )}
-          </button>
-
-          {/* Map Style Toggle */}
-          <button
-            onClick={toggleMapStyle}
-            className={`p-2.5 backdrop-blur border rounded-lg transition-all shadow-sm ${themeConfig.buttonBg} ${themeConfig.buttonBorder} ${themeConfig.buttonText} ${themeConfig.buttonHover}`}
-            title={`Switch to ${mapStyle === 'street' ? 'satellite' : 'street'} view`}
-          >
-            {mapStyle === 'street' ? (
-              <img
-                src="/icons/satellite.png"
-                alt=""
-                className="h-5 w-5"
-                style={{ filter: theme === 'dark' ? 'invert(1)' : 'none' }}
-                aria-hidden="true"
-              />
-            ) : (
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-            )}
-          </button>
-        </div>
-      )}
 
     </div>
     </>

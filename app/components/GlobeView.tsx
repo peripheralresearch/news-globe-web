@@ -2209,6 +2209,40 @@ export default function Home() {
         onToggleMapStyle={toggleMapStyle}
       />
 
+      {/* Subtle startup loading/error overlay for deployed cold starts */}
+      <div
+        className={`absolute inset-0 z-[1200] flex items-center justify-center transition-opacity duration-500 ${
+          isLoading || mapError ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className={`absolute inset-0 ${theme === 'dark' ? 'bg-black/35' : 'bg-white/55'} backdrop-blur-[2px]`} />
+        <div
+          className={`relative rounded-xl border px-5 py-4 shadow-lg ${
+            theme === 'dark'
+              ? 'bg-black/70 border-white/20 text-white'
+              : 'bg-white/90 border-brand-neutral-200 text-brand-ink'
+          }`}
+        >
+          {mapError ? (
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">Globe unavailable</p>
+              <p className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-brand-warm-600'}`}>{mapError}</p>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span
+                className={`h-2.5 w-2.5 rounded-full animate-pulse ${
+                  theme === 'dark' ? 'bg-white/80' : 'bg-brand-navy'
+                }`}
+              />
+              <p className={`text-xs tracking-[0.08em] uppercase ${theme === 'dark' ? 'text-white/80' : 'text-brand-warm-600'}`}>
+                Loading live globe
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Render marker content via portals — React handles updates without recreating mapbox markers */}
       {globeData && markerKeys.map(name => {
         const el = markerElementsRef.current.get(name)

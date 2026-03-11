@@ -226,6 +226,7 @@ const NEWS_ITEM_SUMMARY_LIMIT = 220
 const INITIAL_GLOBE_LIMIT = 35
 const FULL_GLOBE_LIMIT = 150
 const DEFAULT_GLOBE_HOURS = 96 // Latest 4 days
+const MAX_RENDER_LOCATIONS = 85
 
 const IDLE_TIMEOUT = 10000 // 10 seconds before rotation starts
 const ROTATION_SPEED = 0.015 // degrees per frame (slow rotation)
@@ -316,6 +317,40 @@ function telegramChannelUrl(sourceUrl?: string | null): string | null {
   const match = sourceUrl.match(/^https?:\/\/t\.me\/([^/]+)(?:\/\d+)?\/?$/i)
   if (!match?.[1]) return null
   return `https://t.me/${match[1]}`
+}
+
+function locationSeparationDeg(locationSubtype?: string): number {
+  const subtype = (locationSubtype || '').toLowerCase()
+  if (subtype.includes('country')) return 2.4
+  if (subtype.includes('capital')) return 1.4
+  if (subtype.includes('city') || subtype.includes('town')) return 1.1
+  return 1.3
+}
+
+function approximateDistanceDeg(a: [number, number], b: [number, number]): number {
+  const dx = a[0] - b[0]
+  const dy = a[1] - b[1]
+  return Math.sqrt(dx * dx + dy * dy)
+}
+
+function thinLocationsForRender(locations: LocationAggregate[]): LocationAggregate[] {
+  const sorted = [...locations].sort((a, b) => {
+    if (b.newsItemCount !== a.newsItemCount) return b.newsItemCount - a.newsItemCount
+    return b.newsItems.length - a.newsItems.length
+  })
+
+  const kept: LocationAggregate[] = []
+
+  for (const candidate of sorted) {
+    if (kept.length >= MAX_RENDER_LOCATIONS) break
+    const minSeparation = locationSeparationDeg(candidate.locationSubtype)
+    const tooClose = kept.some((existing) =>
+      approximateDistanceDeg(existing.coordinates, candidate.coordinates) < minSeparation
+    )
+    if (!tooClose) kept.push(candidate)
+  }
+
+  return kept
 }
 // Helper function to format date string
 function formatDate(dateString: string): string {
@@ -996,8 +1031,7 @@ export default function Home() {
         return null
       }
 
-	      const newsItems: NewsItem[] = []
-	      const locations: LocationAggregate[] = []
+	      const locationsRaw: LocationAggregate[] = []
 
       for (const loc of result.data.locations || []) {
         if (!Array.isArray(loc.news_items) || !loc.coordinates) continue
@@ -1028,20 +1062,7 @@ export default function Home() {
           return new Date(b.created).getTime() - new Date(a.created).getTime()
         })
 
-	        if (mappedNewsItems.length > 0) {
-	          const firstItem = mappedNewsItems[0]
-	          newsItems.push({
-	            id: firstItem.id,
-	            title: firstItem.title,
-	            summary: firstItem.summary,
-	            created: firstItem.created,
-	            location: loc.entity_name,
-	            coordinates: loc.coordinates,
-	            newsItemCount: loc.news_item_count,
-	          })
-	        }
-
-	        locations.push({
+	        locationsRaw.push({
 	          name: loc.entity_name,
 	          locationSubtype: loc.location_subtype,
 	          coordinates: loc.coordinates,
@@ -1050,6 +1071,21 @@ export default function Home() {
           newsItems: mappedNewsItems,
         })
       }
+
+      const locations = thinLocationsForRender(locationsRaw)
+      const newsItems: NewsItem[] = locations.flatMap((location) => {
+        if (!location.newsItems.length) return []
+        const firstItem = location.newsItems[0]
+        return [{
+          id: firstItem.id,
+          title: firstItem.title,
+          summary: firstItem.summary,
+          created: firstItem.created,
+          location: location.name,
+          coordinates: location.coordinates,
+          newsItemCount: location.newsItemCount,
+        }]
+      })
 
       return {
         newsItems,

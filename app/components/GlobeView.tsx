@@ -2338,6 +2338,15 @@ function MapMarker({
     organisations: Array<{ name: string; orgType: string | null; rank: number | null; confidence: number | null }>
   } | null>(null)
   const [entityLoading, setEntityLoading] = useState(false)
+  const [hoveredEntity, setHoveredEntity] = useState<string | null>(null)
+  const articleScrollRef = useRef<HTMLDivElement>(null)
+
+  // Scroll to first highlight when an entity is hovered
+  useEffect(() => {
+    if (!hoveredEntity || !articleScrollRef.current) return
+    const first = articleScrollRef.current.querySelector<HTMLElement>('[data-entity-highlight]')
+    if (first) first.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [hoveredEntity])
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // Don't stop propagation so click can reach parent
@@ -2389,6 +2398,7 @@ function MapMarker({
     setDetailItem(null)
     setEntityData(null)
     setEntityLoading(false)
+    setHoveredEntity(null)
   }
 
   const handlePanelWheel = (e: React.WheelEvent) => {
@@ -2405,6 +2415,7 @@ function MapMarker({
     e.stopPropagation()
     setDetailItem(item)
     setPanelView('detail')
+    setHoveredEntity(null)
 
     // Replace truncated globe payload summary with full article content on demand.
     if (item.id) {
@@ -2840,7 +2851,7 @@ function MapMarker({
                     </button>
                   </div>
                   {/* Scrollable content area */}
-                  <div className="max-h-[360px] overflow-y-auto pr-1" style={{
+                  <div ref={articleScrollRef} className="max-h-[360px] overflow-y-auto pr-1" style={{
                     scrollbarWidth: 'thin',
                     scrollbarColor: `${themeConfig.panel.scrollbar} transparent`,
                   }}>
@@ -2862,7 +2873,23 @@ function MapMarker({
                   {/* Full summary */}
                   {detailItem.summary && (
                     <p className={`text-[11px] ${themeConfig.panel.textMuted} leading-relaxed`}>
-                      {detailItem.summary}
+                      {(() => {
+                        if (!hoveredEntity) return detailItem.summary
+                        const escaped = hoveredEntity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                        const parts = detailItem.summary.split(new RegExp(`(${escaped})`, 'gi'))
+                        if (parts.length === 1) return detailItem.summary
+                        return parts.map((part, i) =>
+                          i % 2 === 1 ? (
+                            <mark
+                              key={i}
+                              data-entity-highlight
+                              className={theme === 'dark'
+                                ? 'bg-amber-500/30 text-amber-200 rounded-sm px-0.5 not-italic'
+                                : 'bg-amber-200/80 text-amber-900 rounded-sm px-0.5 not-italic'}
+                            >{part}</mark>
+                          ) : part
+                        )
+                      })()}
                     </p>
                   )}
                   {/* Open source link */}
@@ -3067,7 +3094,12 @@ function MapMarker({
                       </div>
                       <div className="space-y-1">
                         {entityData!.people.map((p, i) => (
-                          <div key={i} className="flex items-center gap-1.5">
+                          <div
+                            key={i}
+                            className={`flex items-center gap-1.5 rounded px-1 -mx-1 cursor-default transition-colors ${hoveredEntity === p.name ? (theme === 'dark' ? 'bg-amber-500/15' : 'bg-amber-50') : ''}`}
+                            onMouseEnter={() => setHoveredEntity(p.name)}
+                            onMouseLeave={() => setHoveredEntity(null)}
+                          >
                             {p.rank === 1 && (
                               <span className={`text-[8px] px-1 py-0.5 rounded ${theme === 'dark' ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'} font-medium`}>#1</span>
                             )}
@@ -3091,7 +3123,12 @@ function MapMarker({
                       </div>
                       <div className="space-y-1">
                         {entityData!.organisations.map((o, i) => (
-                          <div key={i} className="flex items-center gap-1.5">
+                          <div
+                            key={i}
+                            className={`flex items-center gap-1.5 rounded px-1 -mx-1 cursor-default transition-colors ${hoveredEntity === o.name ? (theme === 'dark' ? 'bg-amber-500/15' : 'bg-amber-50') : ''}`}
+                            onMouseEnter={() => setHoveredEntity(o.name)}
+                            onMouseLeave={() => setHoveredEntity(null)}
+                          >
                             {o.rank === 1 && (
                               <span className={`text-[8px] px-1 py-0.5 rounded ${theme === 'dark' ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'} font-medium`}>#1</span>
                             )}

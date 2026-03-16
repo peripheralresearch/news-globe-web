@@ -2307,7 +2307,6 @@ function MapMarker({
                           <video
                             src={activePreviewItem?.mediaUrl || undefined}
                             className="block max-h-[420px] w-auto max-w-full rounded-lg object-contain"
-                            muted
                             playsInline
                             controls
                             autoPlay
@@ -2422,7 +2421,6 @@ function MapMarker({
                                 <video
                                   src={newsItem.mediaUrl}
                                   className="block h-auto max-h-60 max-w-[11rem] rounded object-contain"
-                                  muted
                                   playsInline
                                   controls
                                   autoPlay

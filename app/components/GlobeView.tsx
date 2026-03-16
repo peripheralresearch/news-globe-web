@@ -247,7 +247,7 @@ interface GlobeData {
 const NEWS_ITEM_SUMMARY_LIMIT = 220
 const INITIAL_GLOBE_LIMIT = 35
 const FULL_GLOBE_LIMIT = 150
-const DEFAULT_GLOBE_HOURS = 96 // Latest 4 days
+const DEFAULT_GLOBE_HOURS = 24 // Latest 24 hours
 const MAX_RENDER_LOCATIONS = 85
 
 const IDLE_TIMEOUT = 10000 // 10 seconds before rotation starts

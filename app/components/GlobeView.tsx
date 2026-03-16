@@ -3017,8 +3017,8 @@ function MapMarker({
           </div>
         </div>
 
-        {/* Secondary entity panel — disabled until person/org entity extraction catches up */}
-        {false && effectivePanelView === 'detail' && detailItem && (entityLoading || entityData) && (
+        {/* Secondary entity panel */}
+        {effectivePanelView === 'detail' && detailItem && (entityLoading || entityData) && (
           <div
             className="absolute hover-card-enter"
             style={{

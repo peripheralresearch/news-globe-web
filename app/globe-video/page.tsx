@@ -2279,16 +2279,17 @@ function MapMarker({
                       <div
                         className={`relative rounded-lg overflow-hidden ${themeConfig.panel.imagePlaceholder} ${
                           (isVideoMediaUrl(activePreviewItem?.mediaUrl) || activePreviewItem?.hasVideo)
-                            ? 'bg-black min-h-[420px] flex items-center justify-center'
+                            ? 'bg-transparent flex items-center justify-center py-1'
                             : 'h-48'
                         }`}
                       >
                         {(isVideoMediaUrl(activePreviewItem?.mediaUrl) || activePreviewItem?.hasVideo) ? (
                           <video
                             src={activePreviewItem?.mediaUrl || undefined}
-                            className="max-h-[420px] w-auto max-w-full object-contain"
+                            className="block max-h-[420px] w-auto max-w-full rounded-lg object-contain"
                             muted
                             playsInline
+                            controls
                             autoPlay
                             loop
                             preload="metadata"
@@ -2396,13 +2397,14 @@ function MapMarker({
                         <div className="flex items-start gap-2">
                           {/* News item thumbnail */}
                           {newsItem.mediaUrl && (
-                            <div className={`relative flex-shrink-0 rounded overflow-hidden ${themeConfig.panel.imagePlaceholder} ${newsItemIsVideo ? 'w-44 bg-black' : 'w-28 h-20'}`}>
+                            <div className={`relative flex-shrink-0 rounded overflow-hidden ${themeConfig.panel.imagePlaceholder} ${newsItemIsVideo ? 'w-fit max-w-[11rem] bg-transparent' : 'w-28 h-20'}`}>
                               {newsItemIsVideo ? (
                                 <video
                                   src={newsItem.mediaUrl}
-                                  className="w-full h-auto max-h-60 object-contain"
+                                  className="block h-auto max-h-60 max-w-[11rem] rounded object-contain"
                                   muted
                                   playsInline
+                                  controls
                                   autoPlay
                                   loop
                                   preload="metadata"

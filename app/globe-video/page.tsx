@@ -220,9 +220,7 @@ interface GlobeData {
 }
 
 const NEWS_ITEM_SUMMARY_LIMIT = 220
-const INITIAL_GLOBE_LIMIT = 35
-const FULL_GLOBE_LIMIT = 150
-const DEFAULT_GLOBE_HOURS = 168 // 7 days; "all time" queries time out in Supabase/Vercel
+const GLOBE_LIMIT = 200 // All Instagram items — small enough dataset, no pagination needed
 
 const IDLE_TIMEOUT = 10000 // 10 seconds before rotation starts
 const ROTATION_SPEED = 0.015 // degrees per frame (slow rotation)
@@ -948,7 +946,7 @@ export default function Home() {
   // Load globe data
   const fetchGlobePage = useCallback(async (limit: number) => {
     try {
-      const response = await fetch(`/api/sentinel/globe-video?limit=${limit}&hours=${DEFAULT_GLOBE_HOURS}`)
+      const response = await fetch(`/api/sentinel/globe-video?limit=${limit}`)
       if (!response.ok) {
         console.error(`Globe API (limit=${limit}) responded with ${response.status}`)
         return null
@@ -1034,29 +1032,16 @@ export default function Home() {
       setIsLoading(true)
       setMapError(null)
       console.log('Fetching initial globe data...')
-      const initialData = await fetchGlobePage(INITIAL_GLOBE_LIMIT)
-      if (!initialData) {
-        setMapError('Failed to load initial globe data')
+      const data = await fetchGlobePage(GLOBE_LIMIT)
+      if (!data) {
+        setMapError('Failed to load globe data')
         return null
       }
 
-      // Set initial data immediately so UI appears
-      setGlobeData(initialData)
-      globeDataRef.current = initialData
+      setGlobeData(data)
+      globeDataRef.current = data
 
-      fetchGlobePage(FULL_GLOBE_LIMIT)
-        .then(fullData => {
-          if (fullData) {
-            setGlobeData(fullData)
-            globeDataRef.current = fullData
-            updateMapData(fullData)
-          }
-        })
-        .catch(err => {
-          console.warn('Background globe refresh failed', err)
-        })
-
-      return initialData
+      return data
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error loading globe data'
       console.error('Error loading globe data:', error)

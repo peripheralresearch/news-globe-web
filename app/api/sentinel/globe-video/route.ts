@@ -41,65 +41,48 @@ export async function GET(request: NextRequest) {
     const supabase = supabaseServer();
     const searchParams = request.nextUrl.searchParams;
 
-    const hoursParam = searchParams.get('hours');
-    const requestedHours = hoursParam ? Math.max(24, Math.min(parseInt(hoursParam, 10), 720)) : 168;
     const limitParam = searchParams.get('limit');
-    const maxLocations = limitParam ? Math.max(1, Math.min(parseInt(limitParam, 10), 50)) : 35;
+    const maxLocations = limitParam ? Math.max(1, Math.min(parseInt(limitParam, 10), 200)) : 200;
 
-    const fallbackHours = [requestedHours, 72, 48, 24].filter((v, i, arr) => v >= 24 && arr.indexOf(v) === i);
-    let rawItems: RawNewsItem[] = [];
-    let servedHours = requestedHours;
-    let lastItemError: string | null = null;
+    // Resolve Instagram source IDs
+    const { data: sourcesData, error: sourcesError } = await supabase
+      .from('osint_source')
+      .select('id')
+      .ilike('name', '%instagram%');
 
-    for (const h of fallbackHours) {
-      servedHours = h;
-      const since = new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
-      console.log(`Globe Video API - Fetching video-linked items since ${since} (hours=${h})`);
-
-      const { data: itemData, error: itemError } = await supabase
-        .from('news_item')
-        .select(
-          `
-            id,
-            created,
-            title,
-            content,
-            link,
-            media_url,
-            media_type,
-            osint_source_id
-          `
-        )
-        .gte('created', since)
-        .not('media_url', 'is', null)
-        .order('created', { ascending: false })
-        .limit(700);
-
-      if (itemError) {
-        lastItemError = itemError.message || 'unknown error';
-        const timedOut = itemError.message?.includes('statement timeout');
-        if (timedOut && h !== 24) {
-          console.warn(`Globe Video API - News item query timed out at ${h}h, retrying with smaller window`);
-          continue;
-        }
-        console.error('Globe Video API - News item query error:', itemError);
-        return NextResponse.json(
-          { status: 'error', message: 'Failed to fetch video globe data', error: itemError.message },
-          { status: 500 }
-        );
-      }
-
-      rawItems = (itemData || []) as unknown as RawNewsItem[];
-      break;
-    }
-
-    if (!rawItems.length && lastItemError) {
+    if (sourcesError) {
+      console.error('Globe Video API - Source lookup error:', sourcesError);
       return NextResponse.json(
-        { status: 'error', message: 'Failed to fetch video globe data', error: lastItemError },
+        { status: 'error', message: 'Failed to fetch sources', error: sourcesError.message },
         { status: 500 }
       );
     }
 
+    const instagramSourceIds = (sourcesData || []).map((s) => s.id);
+    if (instagramSourceIds.length === 0) {
+      return NextResponse.json(
+        { status: 'success', data: { locations: [], stats: { total_locations: 0, total_video_items: 0 } } },
+        { status: 200 }
+      );
+    }
+
+    console.log(`Globe Video API - Fetching all Instagram items from ${instagramSourceIds.length} sources`);
+
+    const { data: itemData, error: itemError } = await supabase
+      .from('news_item')
+      .select('id, created, title, content, link, media_url, media_type, osint_source_id')
+      .in('osint_source_id', instagramSourceIds)
+      .order('created', { ascending: false });
+
+    if (itemError) {
+      console.error('Globe Video API - News item query error:', itemError);
+      return NextResponse.json(
+        { status: 'error', message: 'Failed to fetch video globe data', error: itemError.message },
+        { status: 500 }
+      );
+    }
+
+    const rawItems = (itemData || []) as unknown as RawNewsItem[];
     const videoItems = rawItems.filter(isVideoLike);
     const videoIds = videoItems.map((item) => item.id);
 
@@ -112,7 +95,6 @@ export async function GET(request: NextRequest) {
             stats: {
               total_locations: 0,
               total_video_items: 0,
-              requested_hours: requestedHours,
             },
           },
         },
@@ -269,8 +251,6 @@ export async function GET(request: NextRequest) {
           stats: {
             total_locations: formattedLocations.length,
             total_video_items: videoItems.length,
-            requested_hours: requestedHours,
-            served_hours: servedHours,
           },
         },
       },

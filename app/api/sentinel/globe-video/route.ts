@@ -72,6 +72,7 @@ export async function GET(request: NextRequest) {
       .from('news_item')
       .select('id, created, title, content, link, media_url, media_type, osint_source_id')
       .in('osint_source_id', instagramSourceIds)
+      .not('media_url', 'is', null)
       .order('created', { ascending: false });
 
     if (itemError) {

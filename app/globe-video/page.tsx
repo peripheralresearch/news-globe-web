@@ -173,6 +173,20 @@ function injectThemeStyles(theme: Theme) {
       z-index: 1000;
     }
 
+    @keyframes loading-ellipsis {
+      0%, 20% { opacity: 0; }
+      40% { opacity: 0.35; }
+      60% { opacity: 0.65; }
+      80%, 100% { opacity: 1; }
+    }
+
+    .loading-ellipsis {
+      display: inline-block;
+      min-width: 1.8em;
+      text-align: left;
+      animation: loading-ellipsis 1.1s steps(4, end) infinite;
+    }
+
   `
 }
 
@@ -1970,6 +1984,27 @@ export default function Home() {
         className="absolute inset-0 w-full h-full"
         style={{ minHeight: '100vh', minWidth: '100vw' }}
       />
+
+      {/* Startup loading/error overlay */}
+      <div
+        className={`absolute inset-0 z-[1200] flex items-center justify-center transition-opacity duration-500 ${
+          isLoading || mapError ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className={`absolute inset-0 ${theme === 'dark' ? 'bg-black/35' : 'bg-white/55'} backdrop-blur-[2px]`} />
+        <div className="relative text-center">
+          {mapError ? (
+            <div className="space-y-1">
+              <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-brand-ink'}`}>Globe unavailable</p>
+              <p className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-brand-warm-600'}`}>{mapError}</p>
+            </div>
+          ) : (
+            <p className={`text-xs tracking-[0.08em] uppercase ${theme === 'dark' ? 'text-white/80' : 'text-brand-warm-600'}`}>
+              Loading live globe<span className="loading-ellipsis">...</span>
+            </p>
+          )}
+        </div>
+      </div>
 
     </div>
     </>

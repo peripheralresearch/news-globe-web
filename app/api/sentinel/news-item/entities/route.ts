@@ -18,12 +18,12 @@ export async function GET(request: NextRequest) {
     const [peopleRes, orgsRes] = await Promise.all([
       supabase
         .from('news_item_entity_person')
-        .select('rank, confidence, role, position, entity_person:person_id (id, name, role)')
+        .select('rank, confidence, role, position, entity_person:person_id (id, name, role, wikidata_qid)')
         .eq('news_item_id', id)
         .order('rank', { ascending: true, nullsFirst: false }),
       supabase
         .from('news_item_entity_organisation')
-        .select('rank, confidence, role, position, entity_organisation:organisation_id (id, name, org_type)')
+        .select('rank, confidence, role, position, entity_organisation:organisation_id (id, name, org_type, wikidata_qid)')
         .eq('news_item_id', id)
         .order('rank', { ascending: true, nullsFirst: false }),
     ]);
@@ -32,17 +32,21 @@ export async function GET(request: NextRequest) {
     if (orgsRes.error) console.error('Entity orgs error:', orgsRes.error);
 
     const people = (peopleRes.data || []).map((row: any) => ({
+      id: row.entity_person?.id ?? null,
       name: row.entity_person?.name,
       role: row.entity_person?.role || row.role || row.position,
       rank: row.rank,
       confidence: row.confidence,
+      wikidataQid: row.entity_person?.wikidata_qid ?? null,
     }));
 
     const organisations = (orgsRes.data || []).map((row: any) => ({
+      id: row.entity_organisation?.id ?? null,
       name: row.entity_organisation?.name,
       orgType: row.entity_organisation?.org_type,
       rank: row.rank,
       confidence: row.confidence,
+      wikidataQid: row.entity_organisation?.wikidata_qid ?? null,
     }));
 
     return NextResponse.json(

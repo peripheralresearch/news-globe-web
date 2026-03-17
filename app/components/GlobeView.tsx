@@ -2334,12 +2334,23 @@ function MapMarker({
 
   // Entity panel state
   const [entityData, setEntityData] = useState<{
-    people: Array<{ name: string; role: string | null; rank: number | null; confidence: number | null }>
-    organisations: Array<{ name: string; orgType: string | null; rank: number | null; confidence: number | null }>
+    people: Array<{ id: number | null; name: string; role: string | null; rank: number | null; confidence: number | null; wikidataQid: string | null }>
+    organisations: Array<{ id: number | null; name: string; orgType: string | null; rank: number | null; confidence: number | null; wikidataQid: string | null }>
   } | null>(null)
   const [entityLoading, setEntityLoading] = useState(false)
   const [hoveredEntity, setHoveredEntity] = useState<string | null>(null)
   const articleScrollRef = useRef<HTMLDivElement>(null)
+
+  // Clicked entity detail panel state
+  const [clickedEntity, setClickedEntity] = useState<{ id: number; name: string; type: 'person' | 'organisation' } | null>(null)
+  const [entityOverview, setEntityOverview] = useState<{
+    description: string | null; imageUrl: string | null; wikipediaUrl: string | null; role: string | null; orgType: string | null
+  } | null>(null)
+  const [entityOverviewLoading, setEntityOverviewLoading] = useState(false)
+  const [entityNews, setEntityNews] = useState<Array<{
+    id: string; title: string | null; summary: string | null; published: string; mediaUrl: string | null; sourceUrl: string | null; sourceName: string
+  }>>([])
+  const [entityNewsLoading, setEntityNewsLoading] = useState(false)
 
   // Scroll to first highlight when an entity is hovered
   useEffect(() => {
@@ -2347,6 +2358,37 @@ function MapMarker({
     const first = articleScrollRef.current.querySelector<HTMLElement>('[data-entity-highlight]')
     if (first) first.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [hoveredEntity])
+
+  const handleEntityClick = (e: React.MouseEvent, entity: { id: number; name: string; type: 'person' | 'organisation' }) => {
+    e.stopPropagation()
+    // Toggle off if same entity clicked again
+    if (clickedEntity?.id === entity.id && clickedEntity?.type === entity.type) {
+      setClickedEntity(null)
+      setEntityOverview(null)
+      setEntityNews([])
+      return
+    }
+    setClickedEntity(entity)
+    setEntityOverview(null)
+    setEntityNews([])
+
+    // Fetch overview
+    setEntityOverviewLoading(true)
+    fetch(`/api/sentinel/entity/overview?type=${entity.type}&id=${entity.id}`)
+      .then(r => r.json())
+      .then(json => { if (json.status === 'success') setEntityOverview(json.data) })
+      .catch(() => {})
+      .finally(() => setEntityOverviewLoading(false))
+
+    // Fetch related news
+    setEntityNewsLoading(true)
+    const exclude = detailItem?.id ? `&exclude=${encodeURIComponent(detailItem.id)}` : ''
+    fetch(`/api/sentinel/entity/news?type=${entity.type}&id=${entity.id}&limit=10${exclude}`)
+      .then(r => r.json())
+      .then(json => { if (json.status === 'success') setEntityNews(json.data.items) })
+      .catch(() => {})
+      .finally(() => setEntityNewsLoading(false))
+  }
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // Don't stop propagation so click can reach parent
@@ -2399,6 +2441,9 @@ function MapMarker({
     setEntityData(null)
     setEntityLoading(false)
     setHoveredEntity(null)
+    setClickedEntity(null)
+    setEntityOverview(null)
+    setEntityNews([])
   }
 
   const handlePanelWheel = (e: React.WheelEvent) => {
@@ -2416,6 +2461,9 @@ function MapMarker({
     setDetailItem(item)
     setPanelView('detail')
     setHoveredEntity(null)
+    setClickedEntity(null)
+    setEntityOverview(null)
+    setEntityNews([])
 
     // Replace truncated globe payload summary with full article content on demand.
     if (item.id) {
@@ -3096,15 +3144,23 @@ function MapMarker({
                         {entityData!.people.map((p, i) => (
                           <div
                             key={i}
-                            className={`flex items-center gap-1.5 rounded px-1 -mx-1 cursor-default transition-colors ${hoveredEntity === p.name ? (theme === 'dark' ? 'bg-amber-500/15' : 'bg-amber-50') : ''}`}
+                            className={`flex items-center gap-1.5 rounded px-1 -mx-1 transition-colors ${
+                              clickedEntity?.id === p.id && clickedEntity?.type === 'person'
+                                ? (theme === 'dark' ? 'bg-white/15' : 'bg-gray-200')
+                                : hoveredEntity === p.name
+                                  ? (theme === 'dark' ? 'bg-amber-500/15' : 'bg-amber-50')
+                                  : ''
+                            } ${p.id ? 'cursor-pointer' : 'cursor-default'}`}
                             onMouseEnter={() => setHoveredEntity(p.name)}
                             onMouseLeave={() => setHoveredEntity(null)}
+                            onClick={p.id ? (e) => handleEntityClick(e, { id: p.id!, name: p.name, type: 'person' }) : undefined}
                           >
                             {p.rank === 1 && (
                               <span className={`text-[8px] px-1 py-0.5 rounded ${theme === 'dark' ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'} font-medium`}>#1</span>
                             )}
                             <span className={`text-[11px] ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>{p.name}</span>
                             {p.role && <span className={`text-[9px] ${themeConfig.panel.textFaint}`}>· {p.role}</span>}
+                            {p.id && <svg className={`w-2.5 h-2.5 ml-auto flex-shrink-0 ${themeConfig.panel.textFaint}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>}
                           </div>
                         ))}
                       </div>
@@ -3125,15 +3181,23 @@ function MapMarker({
                         {entityData!.organisations.map((o, i) => (
                           <div
                             key={i}
-                            className={`flex items-center gap-1.5 rounded px-1 -mx-1 cursor-default transition-colors ${hoveredEntity === o.name ? (theme === 'dark' ? 'bg-amber-500/15' : 'bg-amber-50') : ''}`}
+                            className={`flex items-center gap-1.5 rounded px-1 -mx-1 transition-colors ${
+                              clickedEntity?.id === o.id && clickedEntity?.type === 'organisation'
+                                ? (theme === 'dark' ? 'bg-white/15' : 'bg-gray-200')
+                                : hoveredEntity === o.name
+                                  ? (theme === 'dark' ? 'bg-amber-500/15' : 'bg-amber-50')
+                                  : ''
+                            } ${o.id ? 'cursor-pointer' : 'cursor-default'}`}
                             onMouseEnter={() => setHoveredEntity(o.name)}
                             onMouseLeave={() => setHoveredEntity(null)}
+                            onClick={o.id ? (e) => handleEntityClick(e, { id: o.id!, name: o.name, type: 'organisation' }) : undefined}
                           >
                             {o.rank === 1 && (
                               <span className={`text-[8px] px-1 py-0.5 rounded ${theme === 'dark' ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'} font-medium`}>#1</span>
                             )}
                             <span className={`text-[11px] ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>{o.name}</span>
                             {o.orgType && <span className={`text-[9px] ${themeConfig.panel.textFaint}`}>· {o.orgType}</span>}
+                            {o.id && <svg className={`w-2.5 h-2.5 ml-auto flex-shrink-0 ${themeConfig.panel.textFaint}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>}
                           </div>
                         ))}
                       </div>
@@ -3149,6 +3213,134 @@ function MapMarker({
             </div>
           </div>
         )}
+      {/* Tertiary entity detail panel */}
+      {effectivePanelView === 'detail' && clickedEntity && (
+        <div
+          className="absolute hover-card-enter"
+          style={{ left: `${panelLeft + 676}px`, top: `${panelTop}px`, width: '280px', zIndex: 50, pointerEvents: 'auto' }}
+          onWheel={handlePanelWheel}
+          onTouchMove={handlePanelTouchMove}
+          onClick={handlePanelClick}
+        >
+          <div
+            className={`${themeConfig.panel.bg} backdrop-blur-3xl backdrop-saturate-0 border ${themeConfig.panel.border} rounded-xl ${themeConfig.panel.text} shadow-2xl`}
+            style={panelSurfaceStyle}
+          >
+            {/* Header */}
+            <div className={`flex items-center justify-between px-3 pt-2.5 pb-1.5 border-b ${themeConfig.panel.dividerFaint}`}>
+              <div className="flex items-center gap-1.5 min-w-0">
+                {clickedEntity.type === 'person' ? (
+                  <svg className={`w-3 h-3 flex-shrink-0 ${themeConfig.panel.textFaint}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                ) : (
+                  <svg className={`w-3 h-3 flex-shrink-0 ${themeConfig.panel.textFaint}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                )}
+                <span className={`text-xs font-bold truncate ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>{clickedEntity.name}</span>
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); setClickedEntity(null); setEntityOverview(null); setEntityNews([]) }}
+                className={`flex-shrink-0 p-0.5 rounded ${theme === 'dark' ? 'hover:bg-white/10 text-gray-500' : 'hover:bg-gray-100 text-gray-400'} transition-colors`}
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            {/* Overview section */}
+            <div className="px-3 py-2.5">
+              {entityOverviewLoading ? (
+                <div className="space-y-2">
+                  <div className="flex gap-2.5">
+                    <div className={`w-14 h-14 rounded-lg flex-shrink-0 ${theme === 'dark' ? 'bg-white/10' : 'bg-gray-200'} animate-pulse`} />
+                    <div className="flex-1 space-y-1.5 pt-0.5">
+                      <div className={`h-2 w-20 rounded ${theme === 'dark' ? 'bg-white/10' : 'bg-gray-200'} animate-pulse`} />
+                      <div className={`h-2 w-full rounded ${theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'} animate-pulse`} />
+                      <div className={`h-2 w-3/4 rounded ${theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'} animate-pulse`} />
+                    </div>
+                  </div>
+                </div>
+              ) : entityOverview ? (
+                <div className="flex gap-2.5">
+                  {entityOverview.imageUrl && (
+                    <img
+                      src={entityOverview.imageUrl}
+                      alt={clickedEntity.name}
+                      className="w-14 h-14 rounded-lg object-cover flex-shrink-0"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    {(entityOverview.role || entityOverview.orgType) && (
+                      <p className={`text-[9px] ${themeConfig.panel.textFaint} uppercase tracking-wider mb-0.5`}>
+                        {entityOverview.role || entityOverview.orgType}
+                      </p>
+                    )}
+                    {entityOverview.description && (
+                      <p className={`text-[10px] ${themeConfig.panel.textMuted} leading-relaxed line-clamp-4`}>
+                        {entityOverview.description}
+                      </p>
+                    )}
+                    {entityOverview.wikipediaUrl && (
+                      <a
+                        href={entityOverview.wikipediaUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`inline-flex items-center gap-0.5 mt-1 text-[9px] ${theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-500'} transition-colors`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Wikipedia
+                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className={`text-[10px] ${themeConfig.panel.textFaint}`}>{clickedEntity.name}</p>
+              )}
+            </div>
+
+            {/* Related news */}
+            <div className={`border-t ${themeConfig.panel.dividerFaint}`}>
+              <div className="px-3 pt-2 pb-1">
+                <span className={`text-[10px] font-semibold ${themeConfig.panel.textFaint} uppercase tracking-wider`}>Related articles</span>
+              </div>
+              {entityNewsLoading ? (
+                <div className="px-3 pb-3 space-y-2">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="space-y-1">
+                      <div className={`h-2 w-full rounded ${theme === 'dark' ? 'bg-white/10' : 'bg-gray-200'} animate-pulse`} />
+                      <div className={`h-2 w-2/3 rounded ${theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'} animate-pulse`} />
+                    </div>
+                  ))}
+                </div>
+              ) : entityNews.length > 0 ? (
+                <div className="max-h-[280px] overflow-y-auto px-3 pb-3 space-y-2" style={{ scrollbarWidth: 'thin', scrollbarColor: `${themeConfig.panel.scrollbar} transparent` }}>
+                  {entityNews.map((item, i) => (
+                    <a
+                      key={i}
+                      href={item.sourceUrl || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`block rounded-lg p-2 -mx-1 transition-colors ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {item.mediaUrl && /\.(mp4|webm|mov)/.test(item.mediaUrl) ? (
+                        <video src={item.mediaUrl} className="w-full h-20 object-cover rounded mb-1.5" muted playsInline preload="metadata" />
+                      ) : item.mediaUrl ? (
+                        <img src={item.mediaUrl} alt="" className="w-full h-20 object-cover rounded mb-1.5" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      ) : null}
+                      <p className={`text-[10px] font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} leading-snug line-clamp-2`}>
+                        {item.title || item.summary || 'Untitled'}
+                      </p>
+                      <p className={`text-[9px] ${themeConfig.panel.textFaint} mt-0.5`}>{item.sourceName}</p>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className={`text-[10px] ${themeConfig.panel.textFaint} px-3 pb-3`}>No related articles found.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       </>)}
     </div>
   )
